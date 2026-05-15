@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { TracerPort, SpanHandle, SpanOptions } from "@/core/ports/tracer.port";
 import type { TraceSpan } from "@growth/shared/types";
 import { newSpanId, newTraceId } from "@/lib/id";
@@ -28,9 +29,25 @@ import { logger } from "@/lib/logger";
  * in memory until flush() is called.
  */
 
-const DEFAULT_EXECUTION_ID = "no-run";
+const DEFAULT_EXECUTION_ID = "00000000-0000-5000-8000-000000000000";
 const SDK_VERSION = "growth-engineer/0.1.0";
 const SERVICE_NAME = "growth-engineer-dashboard";
+
+/**
+ * Omium's ingest API validates `execution_id` as a UUID and silently nulls
+ * anything else, which breaks Run-level grouping in the UI. Dashboard runIds
+ * are short prefixed hex (`run_<hex16>`), so we hash them into a stable v5-
+ * style UUID. The mapping is deterministic — same runId always yields the
+ * same execution_id, so spans for one Run stay grouped across batches.
+ */
+function runIdToExecutionUuid(runId: string): string {
+  const h = createHash("sha1").update(`omium:exec:${runId}`).digest();
+  const bytes = Buffer.from(h.subarray(0, 16));
+  bytes[6] = (bytes[6]! & 0x0f) | 0x50; // version 5
+  bytes[8] = (bytes[8]! & 0x3f) | 0x80; // variant RFC 4122
+  const hex = bytes.toString("hex");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+}
 
 interface OmiumSpanPayload {
   span_id: string;
@@ -94,7 +111,7 @@ class OmiumTransport {
   }
 
   enqueueCompleted(span: TraceSpan): void {
-    const execId = span.runId ?? DEFAULT_EXECUTION_ID;
+    const execId = span.runId ? runIdToExecutionUuid(span.runId) : DEFAULT_EXECUTION_ID;
     const q = this.queues.get(execId) ?? [];
     q.push(span);
     this.queues.set(execId, q);
