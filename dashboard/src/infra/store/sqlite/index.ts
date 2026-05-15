@@ -4,6 +4,7 @@ import { stepsRepo } from "./steps.repo";
 import { tracesRepo } from "./traces.repo";
 import { suggestionsRepo } from "./suggestions.repo";
 import { secretsRepo } from "./secrets.repo";
+import { geoCacheRepo } from "./geo-cache.repo";
 
 export const sqliteStore: StorePort = {
   runs: runsRepo,
@@ -11,4 +12,5 @@ export const sqliteStore: StorePort = {
   traces: tracesRepo,
   suggestions: suggestionsRepo,
   secrets: secretsRepo,
+  geoCache: geoCacheRepo,
 };

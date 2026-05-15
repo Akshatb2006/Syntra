@@ -42,6 +42,28 @@ export class GeoIntelAgent extends BaseAgent<GeoIntelInput, GeoIntelOutput> {
       null,
     );
 
+    // Cache lookup: same (city + locality set) returns the prior result.
+    // Geo data is slow-changing; 30-day TTL is more than safe for hackathon scale.
+    const cacheKey = `${input.city.trim().toLowerCase()}|${[...input.localities].sort().join(",")}`;
+    const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+    const hit = ctx.store.geoCache.get<GeoIntelOutput>(cacheKey, CACHE_TTL_MS);
+    if (hit) {
+      this.completeStep(ctx, step, {
+        localities: Object.keys(hit.value.byLocality),
+        topOpportunities: hit.value.topOpportunities.length,
+        cached: true,
+        cachedAt: hit.createdAt,
+      });
+      span.end({
+        status: "ok",
+        attributes: {
+          localities: Object.keys(hit.value.byLocality).length,
+          cached: true,
+        },
+      });
+      return hit.value;
+    }
+
     try {
       const tools: Array<ToolDef<unknown, unknown>> = [
         {
@@ -70,7 +92,7 @@ For each locality in the input, you will produce:
 - 2-4 distinct search intents (rent vs buy, family vs IT, etc.),
 - a tight keyword cluster (5-10 short terms).
 
-Use the web_search tool aggressively for accurate, current locality data. Make 2-3 searches per locality.
+Use the web_search tool sparingly — make at most 1 search per locality, and only when your training data is clearly insufficient for that specific place.
 
 Then output ONLY a single JSON object matching this schema, no prose:
 {
@@ -98,12 +120,15 @@ Research and produce the JSON. Top opportunities should be ranked by SEO upside 
         system,
         userPrompt,
         tools,
-        maxRounds: 8,
+        maxRounds: 3,
       });
 
       const parsed = this.parseJson(text);
       if (!parsed)
         throw new Error("Geo agent did not return valid JSON output");
+
+      // Populate cache for future runs on the same city + localities.
+      ctx.store.geoCache.set(cacheKey, input.city.trim().toLowerCase(), parsed);
 
       this.completeStep(ctx, step, {
         localities: Object.keys(parsed.byLocality),

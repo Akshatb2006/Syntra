@@ -78,4 +78,12 @@ CREATE TABLE IF NOT EXISTS secrets (
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS geo_cache (
+  cache_key TEXT PRIMARY KEY,
+  city TEXT NOT NULL,
+  value_json TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_geo_cache_city ON geo_cache(city);
 `;

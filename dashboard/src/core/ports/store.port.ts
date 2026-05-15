@@ -40,10 +40,19 @@ export interface SecretsRepoPort {
   delete(id: string): void;
 }
 
+export interface GeoCacheRepoPort {
+  get<T>(
+    key: string,
+    maxAgeMs?: number,
+  ): { value: T; createdAt: number } | null;
+  set<T>(key: string, city: string, value: T): void;
+}
+
 export interface StorePort {
   runs: RunsRepoPort;
   steps: StepsRepoPort;
   traces: TracesRepoPort;
   suggestions: SuggestionsRepoPort;
   secrets: SecretsRepoPort;
+  geoCache: GeoCacheRepoPort;
 }

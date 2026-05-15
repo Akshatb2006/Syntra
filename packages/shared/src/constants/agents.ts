@@ -13,7 +13,7 @@ export const AGENTS: Record<AgentName, { displayName: string; model: string; des
   },
   geo_intel: {
     displayName: "Geo Intelligence",
-    model: "claude-sonnet-4-6",
+    model: "claude-haiku-4-5",
     description: "Discovers locality keywords, neighborhood landmarks, and geo-intent SEO opportunities.",
   },
   code_mod: {
