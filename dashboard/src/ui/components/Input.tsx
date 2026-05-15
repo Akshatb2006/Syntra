@@ -1,32 +1,21 @@
 import type { InputHTMLAttributes, ReactNode } from "react";
 
-export function Field({
-  label,
-  hint,
-  children,
-}: {
+interface FieldProps {
   label: string;
   hint?: string;
   children: ReactNode;
-}) {
+}
+
+export function Field({ label, hint, children }: FieldProps) {
   return (
-    <label className="block space-y-1.5">
-      <span className="text-xs font-medium uppercase tracking-wider text-[var(--fg-muted)]">
-        {label}
-      </span>
+    <div className="form-field">
+      <label className="form-label">{label}</label>
+      {hint && <div className="form-hint">{hint}</div>}
       {children}
-      {hint && <span className="block text-xs text-[var(--fg-muted)]">{hint}</span>}
-    </label>
+    </div>
   );
 }
 
-export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <input
-      {...props}
-      className={`w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--fg)] placeholder:text-[var(--fg-muted)] focus:border-[var(--accent)] focus:outline-none ${
-        props.className ?? ""
-      }`}
-    />
-  );
+export function Input({ className = "", ...props }: InputHTMLAttributes<HTMLInputElement>) {
+  return <input className={`form-input ${className}`} {...props} />;
 }

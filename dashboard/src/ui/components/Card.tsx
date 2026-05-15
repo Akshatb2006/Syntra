@@ -8,9 +8,7 @@ export function Card({
   className?: string;
 }) {
   return (
-    <div
-      className={`rounded-xl border border-[var(--border)] bg-[var(--bg-elev)] ${className}`}
-    >
+    <div className={`sug-card ${className}`}>
       {children}
     </div>
   );
@@ -18,7 +16,13 @@ export function Card({
 
 export function CardHeader({ children }: { children: ReactNode }) {
   return (
-    <div className="border-b border-[var(--border)] px-5 py-3 text-sm font-medium text-[var(--fg)]">
+    <div style={{
+      borderBottom: '1px solid var(--border)',
+      padding: '14px 20px',
+      fontSize: '13px',
+      fontWeight: 500,
+      color: 'var(--fg)',
+    }}>
       {children}
     </div>
   );
@@ -31,5 +35,5 @@ export function CardBody({
   children: ReactNode;
   className?: string;
 }) {
-  return <div className={`p-5 ${className}`}>{children}</div>;
+  return <div style={{ padding: '20px' }} className={className}>{children}</div>;
 }

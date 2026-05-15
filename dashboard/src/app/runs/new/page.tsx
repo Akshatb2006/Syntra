@@ -2,7 +2,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Card, CardHeader, CardBody } from "@/ui/components/Card";
 import { Field, Input } from "@/ui/components/Input";
 import { Button } from "@/ui/components/Button";
 
@@ -49,73 +48,113 @@ export default function NewRunPage() {
     }
   }
 
+  const canStart = !!credentialsRef && !!siteUrl && !!repoUrl;
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">New run</h1>
-        <p className="mt-1 text-sm text-[var(--fg-muted)]">
-          The pipeline will crawl, audit, research locality intent, plan,
-          dispatch Claude Code, and validate the preview — autonomously.
-        </p>
+    <div className="page-shell">
+      <div className="section-head" style={{ marginBottom: 36 }}>
+        <div>
+          <h1 className="section-title">New run</h1>
+          <p className="section-sub">
+            The pipeline will crawl, audit, research locality intent, plan,
+            dispatch Claude Code, and validate the preview — autonomously.
+          </p>
+        </div>
       </div>
 
       {!credentialsRef && (
-        <Card>
-          <CardBody>
-            <div className="text-sm text-rose-400">
-              You haven&apos;t saved credentials yet.{" "}
-              <Link href="/connect" className="underline">
-                Connect them
-              </Link>{" "}
-              before starting a run.
-            </div>
-          </CardBody>
-        </Card>
+        <div style={{
+          background: 'var(--danger-soft)',
+          border: '1px solid #fecdd3',
+          borderRadius: 10,
+          padding: '16px 20px',
+          fontSize: 14,
+          color: 'var(--danger)',
+          marginBottom: 28,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}>
+          <span>You haven&apos;t saved credentials yet.</span>
+          <Link href="/connect"><button className="btn btn-secondary">Connect →</button></Link>
+        </div>
       )}
 
-      <Card>
-        <CardHeader>Target</CardHeader>
-        <CardBody className="space-y-4">
-          <Field label="Site URL" hint="Public URL of the live site to audit.">
-            <Input
-              value={siteUrl}
-              onChange={(e) => setSiteUrl(e.target.value)}
-              placeholder="https://yoursite.com"
-            />
-          </Field>
-          <Field label="GitHub repo URL" hint="HTTPS clone URL of the Next.js codebase.">
-            <Input
-              value={repoUrl}
-              onChange={(e) => setRepoUrl(e.target.value)}
-              placeholder="https://github.com/owner/repo"
-            />
-          </Field>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Base branch">
+      {credentialsRef && (
+        <div style={{
+          background: 'var(--success-soft)',
+          border: '1px solid #bbf7d0',
+          borderRadius: 10,
+          padding: '14px 20px',
+          fontSize: 13,
+          color: 'var(--success)',
+          marginBottom: 28,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+        }}>
+          <span>●</span>
+          <span>Credentials ready · <span className="mono">{credentialsRef}</span></span>
+        </div>
+      )}
+
+      <div className="sug-card">
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--fg-dim)', marginBottom: 20 }}>Target</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <Field label="Site URL" hint="Public URL of the live site to audit.">
               <Input
-                value={branchBase}
-                onChange={(e) => setBranchBase(e.target.value)}
+                value={siteUrl}
+                onChange={(e) => setSiteUrl(e.target.value)}
+                placeholder="https://yoursite.com"
               />
             </Field>
-            <Field
-              label="Primary city (optional)"
-              hint="Seeds the Geo agent. Leave blank to auto-detect from the URL."
-            >
+            <Field label="GitHub repo URL" hint="HTTPS clone URL of the Next.js codebase.">
               <Input
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                placeholder="Mumbai, Bangalore, NYC, …"
+                value={repoUrl}
+                onChange={(e) => setRepoUrl(e.target.value)}
+                placeholder="https://github.com/owner/repo"
               />
             </Field>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+              <Field label="Base branch">
+                <Input
+                  value={branchBase}
+                  onChange={(e) => setBranchBase(e.target.value)}
+                />
+              </Field>
+              <Field
+                label="Primary city (optional)"
+                hint="Seeds the Geo agent. Leave blank to auto-detect."
+              >
+                <Input
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  placeholder="Mumbai, Austin TX, …"
+                />
+              </Field>
+            </div>
           </div>
-          {error && <div className="text-sm text-rose-400">{error}</div>}
-          <div className="flex justify-end">
-            <Button onClick={start} disabled={busy || !credentialsRef}>
-              {busy ? "Starting…" : "Start autonomous run"}
-            </Button>
+        </div>
+
+        {error && (
+          <div style={{ color: 'var(--danger)', fontSize: 14, marginBottom: 18, padding: '12px 16px', background: 'var(--danger-soft)', borderRadius: 8 }}>
+            {error}
           </div>
-        </CardBody>
-      </Card>
+        )}
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 4 }}>
+          <p style={{ fontSize: 13, color: 'var(--fg-muted)' }}>
+            This will open a real PR on your repo. Ensure credentials are correct.
+          </p>
+          <Button
+            onClick={start}
+            disabled={busy || !canStart}
+          >
+            {busy ? "Starting…" : "Start autonomous run"}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

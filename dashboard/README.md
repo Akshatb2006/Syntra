@@ -1,6 +1,6 @@
 # dashboard
 
-Next.js 15 dashboard for the Autonomous Growth Engineer. Runs on the friend's
+Next.js 15 dashboard for Syntra. Runs on the friend's
 laptop. Contains:
 
 - 5 agents (Orchestrator, Crawl/SEO, Geo Intel, Code Mod, Validation)

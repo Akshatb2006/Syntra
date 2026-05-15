@@ -1,9 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Card, CardHeader, CardBody } from "@/ui/components/Card";
 import { Field, Input } from "@/ui/components/Input";
 import { Button } from "@/ui/components/Button";
-import { Badge } from "@/ui/components/Badge";
+import Link from "next/link";
 
 interface StatusResponse {
   mcp: {
@@ -28,12 +27,25 @@ const EMPTY_FORM = {
   searchConsoleSiteUrl: "",
 };
 
+function StatusIndicator({ ok, label, detail }: { ok: boolean; label: string; detail?: string }) {
+  return (
+    <div className="status-row">
+      <span className="status-row-label">{label}</span>
+      <div className="status-row-value">
+        {detail && <span className="mono" style={{ fontSize: 11, color: 'var(--fg-dim)' }}>{detail}</span>}
+        <span className={`badge ${ok ? 'badge-success' : 'badge-danger'}`}>{ok ? 'ready' : 'not configured'}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function ConnectPage() {
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [credentialsRef, setCredentialsRef] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     fetch("/api/status")
@@ -50,8 +62,8 @@ export default function ConnectPage() {
   async function save() {
     setBusy(true);
     setError(null);
+    setSaved(false);
     try {
-      // Strip empty strings — backend treats them as missing optionals.
       const payload = Object.fromEntries(
         Object.entries(form).filter(([, v]) => v && String(v).trim()),
       );
@@ -64,6 +76,7 @@ export default function ConnectPage() {
       if (!res.ok) throw new Error(json.error ?? "Failed");
       setCredentialsRef(json.credentialsRef);
       sessionStorage.setItem("credentialsRef", json.credentialsRef);
+      setSaved(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -72,188 +85,167 @@ export default function ConnectPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Connect</h1>
-        <p className="mt-1 text-sm text-[var(--fg-muted)]">
-          The only thing required from you is a GitHub token — Claude needs it
-          to push branches and open PRs on your repo. LLM and search are
-          provided by the platform.
-        </p>
+    <div className="page-shell">
+      {/* Header row */}
+      <div className="section-head">
+        <div>
+          <h1 className="section-title">Connect</h1>
+          <p className="section-sub">
+            Provide a GitHub token so the pipeline can open PRs. LLM and search are platform-provided.
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexShrink: 0 }}>
+          <Button onClick={save} disabled={busy || !form.githubToken}>
+            {busy ? "Saving…" : "Save credentials"}
+          </Button>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>System status</CardHeader>
-        <CardBody>
-          {!status ? (
-            <div className="text-sm text-[var(--fg-muted)]">Loading…</div>
-          ) : (
-            <ul className="space-y-2 text-sm">
-              <li className="flex items-center justify-between">
-                <span className="text-[var(--fg-muted)]">MCP server</span>
-                <span className="flex items-center gap-2">
-                  {status.mcp.reachable ? (
-                    <Badge tone="success">reachable</Badge>
-                  ) : (
-                    <Badge tone="danger">unreachable</Badge>
-                  )}
-                  <span className="font-mono text-xs text-[var(--fg-muted)]">
-                    {status.mcp.url}
-                  </span>
-                </span>
-              </li>
-              {status.mcp.reachable && (
-                <li className="flex items-center justify-between">
-                  <span className="text-[var(--fg-muted)]">Plugins</span>
-                  <span className="flex flex-wrap gap-1.5">
-                    {(status.mcp.plugins ?? []).map((p) => (
-                      <Badge key={p} tone="muted">
-                        {p}
-                      </Badge>
-                    ))}
-                  </span>
-                </li>
-              )}
-              <li className="flex items-center justify-between">
-                <span className="text-[var(--fg-muted)]">Anthropic LLM</span>
-                <Badge tone={status.anthropic.configured ? "success" : "danger"}>
-                  {status.anthropic.configured ? "ready" : "platform key missing"}
-                </Badge>
-              </li>
-              <li className="flex items-center justify-between">
-                <span className="text-[var(--fg-muted)]">Web search</span>
-                <Badge tone={status.tavily.configured ? "success" : "muted"}>
-                  {status.tavily.configured ? "ready" : "stub fallback"}
-                </Badge>
-              </li>
-              <li className="flex items-center justify-between">
-                <span className="text-[var(--fg-muted)]">Omium tracing</span>
-                <Badge tone={status.omium.configured ? "success" : "muted"}>
-                  {status.omium.configured ? "active" : "local-only"}
-                </Badge>
-              </li>
-            </ul>
-          )}
-        </CardBody>
-      </Card>
+      {/* Success banner */}
+      {saved && (
+        <div style={{
+          background: 'var(--success-soft)',
+          border: '1px solid #bbf7d0',
+          borderRadius: 10,
+          padding: '16px 20px',
+          fontSize: 14,
+          color: 'var(--success)',
+          marginBottom: 32,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}>
+          <span>Credentials saved as <span className="mono">{credentialsRef}</span></span>
+          <Link href="/runs/new"><button className="btn btn-primary">Start a run →</button></Link>
+        </div>
+      )}
 
-      <Card>
-        <CardHeader>Required</CardHeader>
-        <CardBody className="space-y-4">
-          {credentialsRef && (
-            <div className="rounded-md bg-emerald-900/30 px-3 py-2 text-xs text-emerald-300">
-              Saved as{" "}
-              <span className="font-mono">{credentialsRef}</span>. You can now
-              start a run.
+      {error && (
+        <div style={{ color: 'var(--danger)', fontSize: 14, marginBottom: 24, padding: '12px 16px', background: 'var(--danger-soft)', borderRadius: 8 }}>{error}</div>
+      )}
+
+      {/* Two-column layout */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 28, alignItems: 'start' }}>
+
+        {/* LEFT COLUMN — Credentials */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {/* GitHub token */}
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--fg-dim)', marginBottom: 14 }}>Required</div>
+            <div className="sug-card">
+              <Field
+                label="GitHub token"
+                hint="Classic PAT or fine-grained token with repo + workflow scopes. Create at github.com/settings/tokens."
+              >
+                <Input
+                  type="password"
+                  value={form.githubToken}
+                  onChange={(e) => setForm({ ...form, githubToken: e.target.value })}
+                  placeholder="ghp_… or github_pat_…"
+                />
+              </Field>
             </div>
-          )}
-          <Field
-            label="GitHub token"
-            hint="Classic PAT or fine-grained token with repo + workflow scopes on the target repo. Create at github.com/settings/tokens."
-          >
-            <Input
-              type="password"
-              value={form.githubToken}
-              onChange={(e) => setForm({ ...form, githubToken: e.target.value })}
-              placeholder="ghp_… or github_pat_…"
-            />
-          </Field>
-        </CardBody>
-      </Card>
-
-      <Card>
-        <CardHeader>Vercel (recommended)</CardHeader>
-        <CardBody className="space-y-4">
-          <p className="text-xs text-[var(--fg-muted)]">
-            Required if you want the Validation agent to wait for the PR&apos;s
-            preview deployment and re-run Lighthouse against it. Without these,
-            the run still produces a PR; you just won&apos;t get the before/after
-            score in the dashboard.
-          </p>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Vercel token" hint="vercel.com/account/tokens">
-              <Input
-                type="password"
-                value={form.vercelToken}
-                onChange={(e) =>
-                  setForm({ ...form, vercelToken: e.target.value })
-                }
-              />
-            </Field>
-            <Field
-              label="Vercel project ID"
-              hint="vercel.com/<team>/<project>/settings — the prj_… ID"
-            >
-              <Input
-                value={form.vercelProjectId}
-                onChange={(e) =>
-                  setForm({ ...form, vercelProjectId: e.target.value })
-                }
-                placeholder="prj_…"
-              />
-            </Field>
-            <Field
-              label="Vercel team ID"
-              hint="Only if the project is in a team; team_…"
-            >
-              <Input
-                value={form.vercelTeamId}
-                onChange={(e) =>
-                  setForm({ ...form, vercelTeamId: e.target.value })
-                }
-              />
-            </Field>
           </div>
-        </CardBody>
-      </Card>
 
-      <Card>
-        <CardHeader>Optional analytics</CardHeader>
-        <CardBody className="space-y-4">
-          <p className="text-xs text-[var(--fg-muted)]">
-            Captured for future integrations — not used by the v1 pipeline.
-          </p>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field
-              label="Google Places API key"
-              hint="For accurate nearby-landmark discovery"
-            >
-              <Input
-                type="password"
-                value={form.googlePlacesApiKey}
-                onChange={(e) =>
-                  setForm({ ...form, googlePlacesApiKey: e.target.value })
-                }
-              />
-            </Field>
-            <Field label="GA4 property ID">
-              <Input
-                value={form.googleAnalyticsPropertyId}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    googleAnalyticsPropertyId: e.target.value,
-                  })
-                }
-              />
-            </Field>
-            <Field label="Search Console site URL">
-              <Input
-                value={form.searchConsoleSiteUrl}
-                onChange={(e) =>
-                  setForm({ ...form, searchConsoleSiteUrl: e.target.value })
-                }
-              />
-            </Field>
+          {/* Vercel */}
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--fg-dim)', marginBottom: 14 }}>
+              Vercel <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: 'var(--fg-dim)', fontSize: 12 }}>— before/after Lighthouse</span>
+            </div>
+            <div className="sug-card">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <Field label="Vercel token" hint="vercel.com/account/tokens">
+                  <Input
+                    type="password"
+                    value={form.vercelToken}
+                    onChange={(e) => setForm({ ...form, vercelToken: e.target.value })}
+                  />
+                </Field>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                  <Field label="Vercel project ID" hint="prj_… from settings">
+                    <Input
+                      value={form.vercelProjectId}
+                      onChange={(e) => setForm({ ...form, vercelProjectId: e.target.value })}
+                      placeholder="prj_…"
+                    />
+                  </Field>
+                  <Field label="Vercel team ID" hint="team_… if applicable">
+                    <Input
+                      value={form.vercelTeamId}
+                      onChange={(e) => setForm({ ...form, vercelTeamId: e.target.value })}
+                    />
+                  </Field>
+                </div>
+              </div>
+            </div>
           </div>
-        </CardBody>
-      </Card>
+        </div>
 
-      {error && <div className="text-sm text-rose-400">{error}</div>}
-      <div className="flex justify-end">
-        <Button onClick={save} disabled={busy || !form.githubToken}>
-          {busy ? "Saving…" : "Save credentials"}
-        </Button>
+        {/* RIGHT COLUMN — System status + optional */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {/* System status */}
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--fg-dim)', marginBottom: 14 }}>System status</div>
+            <div className="sug-card" style={{ padding: '4px 24px' }}>
+              {!status ? (
+                <div className="status-row"><span style={{ color: 'var(--fg-muted)' }}>Loading…</span></div>
+              ) : (
+                <>
+                  <div className="status-row">
+                    <span className="status-row-label">MCP server</span>
+                    <div className="status-row-value">
+                      <span className="mono" style={{ fontSize: 12, color: 'var(--fg-dim)' }}>{status.mcp.url}</span>
+                      <span className={`badge ${status.mcp.reachable ? 'badge-success' : 'badge-danger'}`}>
+                        {status.mcp.reachable ? 'reachable' : 'unreachable'}
+                      </span>
+                    </div>
+                  </div>
+                  {status.mcp.reachable && status.mcp.plugins && status.mcp.plugins.length > 0 && (
+                    <div className="status-row">
+                      <span className="status-row-label">Plugins</span>
+                      <div className="status-row-value">
+                        {status.mcp.plugins.map(p => (
+                          <span key={p} className="badge badge-muted">{p}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <StatusIndicator ok={status.anthropic.configured} label="Anthropic LLM" />
+                  <StatusIndicator ok={status.tavily.configured} label="Web search (Tavily)" detail={status.tavily.configured ? '' : 'stub fallback active'} />
+                  <StatusIndicator ok={status.omium.configured} label="Omium tracing" detail={status.omium.configured ? status.omium.projectId : 'local-only'} />
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Optional analytics */}
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--fg-dim)', marginBottom: 14 }}>Optional analytics</div>
+            <div className="sug-card">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <Field label="Google Places API key" hint="Accurate nearby-landmark discovery">
+                  <Input
+                    type="password"
+                    value={form.googlePlacesApiKey}
+                    onChange={(e) => setForm({ ...form, googlePlacesApiKey: e.target.value })}
+                  />
+                </Field>
+                <Field label="GA4 property ID">
+                  <Input
+                    value={form.googleAnalyticsPropertyId}
+                    onChange={(e) => setForm({ ...form, googleAnalyticsPropertyId: e.target.value })}
+                  />
+                </Field>
+                <Field label="Search Console site URL">
+                  <Input
+                    value={form.searchConsoleSiteUrl}
+                    onChange={(e) => setForm({ ...form, searchConsoleSiteUrl: e.target.value })}
+                  />
+                </Field>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

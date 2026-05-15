@@ -29,6 +29,12 @@ export async function GET() {
           reachable: false,
           error: err instanceof Error ? err.message : String(err),
         },
+        omium: {
+          configured: Boolean(env.omiumUrl && env.omiumKey),
+          projectId: env.omiumProjectId,
+        },
+        anthropic: { configured: Boolean(env.anthropicKey) },
+        tavily: { configured: Boolean(env.tavilyKey) },
       },
       { status: 200 },
     );

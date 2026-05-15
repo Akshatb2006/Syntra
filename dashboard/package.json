@@ -2,7 +2,7 @@
   "name": "@growth/dashboard",
   "version": "0.1.0",
   "private": true,
-  "description": "Dashboard + orchestrator for the Autonomous Growth Engineer",
+  "description": "Syntra dashboard + orchestrator for autonomous SEO growth",
   "scripts": {
     "dev": "next dev --port 3000",
     "build": "next build",

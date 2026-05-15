@@ -1,7 +1,5 @@
 import Link from "next/link";
 import { sqliteStore } from "@/infra/store/sqlite";
-import { Card, CardBody } from "@/ui/components/Card";
-import { Button } from "@/ui/components/Button";
 import { RunStatusBadge } from "@/ui/components/StatusBadge";
 
 export const dynamic = "force-dynamic";
@@ -18,71 +16,50 @@ function timeAgo(ms: number): string {
 export default function HomePage() {
   const runs = sqliteStore.runs.list(50);
   return (
-    <div className="space-y-8">
-      <section className="flex items-end justify-between gap-4">
+    <div className="page-shell">
+      <div className="section-head">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Runs</h1>
-          <p className="mt-1 text-sm text-[var(--fg-muted)]">
+          <h1 className="section-title">Runs</h1>
+          <p className="section-sub">
             Each run audits a site, plans fixes, opens a PR, and validates the
             preview deployment — autonomously.
           </p>
         </div>
         <Link href="/runs/new">
-          <Button>+ New run</Button>
+          <button className="btn btn-primary">+ New run</button>
         </Link>
-      </section>
+      </div>
 
       {runs.length === 0 ? (
-        <Card>
-          <CardBody className="text-center text-sm text-[var(--fg-muted)]">
-            No runs yet.{" "}
-            <Link href="/connect" className="text-[var(--accent)] hover:underline">
-              Connect your credentials
-            </Link>{" "}
-            and{" "}
-            <Link
-              href="/runs/new"
-              className="text-[var(--accent)] hover:underline"
-            >
-              start the first run
-            </Link>
-            .
-          </CardBody>
-        </Card>
+        <div className="empty-state">
+          <div className="empty-title">No runs yet</div>
+          <div className="empty-desc">
+            <Link href="/connect">Connect your credentials</Link>{" "}
+            then{" "}
+            <Link href="/runs/new">start your first autonomous run</Link>.
+          </div>
+        </div>
       ) : (
-        <Card>
-          <ul className="divide-y divide-[var(--border)]">
-            {runs.map((run) => (
-              <li key={run.id}>
-                <Link
-                  href={`/runs/${run.id}`}
-                  className="flex items-center justify-between gap-4 px-5 py-4 hover:bg-[var(--bg)]"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-3">
-                      <span className="font-mono text-xs text-[var(--fg-muted)]">
-                        {run.id}
-                      </span>
-                      <RunStatusBadge status={run.status} />
-                    </div>
-                    <div className="mt-1 truncate text-sm text-[var(--fg)]">
-                      {run.input.siteUrl}
-                    </div>
-                    <div className="mt-0.5 truncate text-xs text-[var(--fg-muted)]">
-                      {run.input.repoUrl}
-                    </div>
-                  </div>
-                  <div className="shrink-0 text-right text-xs text-[var(--fg-muted)]">
-                    <div>{timeAgo(run.createdAt)}</div>
-                    {run.prUrl && (
-                      <div className="text-emerald-400">PR ready</div>
-                    )}
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </Card>
+        <div className="run-list">
+          {runs.map((run) => (
+            <Link key={run.id} href={`/runs/${run.id}`} className="run-item">
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span className="run-item-id">{run.id}</span>
+                  <RunStatusBadge status={run.status} />
+                </div>
+                <div className="run-item-url">{run.input.siteUrl}</div>
+                <div className="run-item-repo mono">{run.input.repoUrl.replace('https://github.com/', '')}</div>
+              </div>
+              <div className="run-item-meta">
+                <div>{timeAgo(run.createdAt)}</div>
+                {run.prUrl && (
+                  <div style={{ color: 'var(--success)', marginTop: 4 }}>PR ready ↗</div>
+                )}
+              </div>
+            </Link>
+          ))}
+        </div>
       )}
     </div>
   );

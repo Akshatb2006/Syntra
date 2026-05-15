@@ -10,19 +10,7 @@ interface Props {
   onDispatched?: (suggestionId: string) => void;
 }
 
-/**
- * Modal that triggers a single Claude Code dispatch for the chosen suggestion.
- * The user picks one of three actions:
- *   - Cancel
- *   - Develop without prompt — implements the suggestion as-is
- *   - Develop with prompt — sends an additional human instruction to Claude Code
- */
-export function DevelopDialog({
-  runId,
-  suggestion,
-  onClose,
-  onDispatched,
-}: Props) {
+export function DevelopDialog({ runId, suggestion, onClose, onDispatched }: Props) {
   const [prompt, setPrompt] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,9 +37,7 @@ export function DevelopDialog({
           body: JSON.stringify(withPrompt && prompt.trim() ? { prompt: prompt.trim() } : {}),
         },
       );
-      const json = (await res.json().catch(() => ({}))) as {
-        error?: string;
-      };
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
       onDispatched?.(suggestion!.id);
       onClose();
@@ -62,72 +48,80 @@ export function DevelopDialog({
     }
   }
 
-  const trimmedPrompt = prompt.trim();
-  const promptDisabled = busy || trimmedPrompt.length === 0;
-
   return (
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      style={{
+        position: 'fixed', inset: 0, zIndex: 100,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'rgba(0,0,0,0.35)', padding: 16,
+      }}
       onClick={onClose}
     >
       <div
-        className="w-full max-w-xl rounded-xl border border-[var(--border)] bg-[var(--bg-elev)] shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: '100%', maxWidth: 540,
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 14,
+          boxShadow: '0 8px 40px rgba(0,0,0,0.14)',
+          overflow: 'hidden',
+        }}
+        onClick={e => e.stopPropagation()}
       >
-        <div className="border-b border-[var(--border)] px-5 py-4">
-          <div className="text-xs uppercase tracking-wider text-[var(--fg-muted)]">
-            Develop suggestion
-          </div>
-          <div className="mt-1 text-base font-medium text-[var(--fg)]">
+        {/* Header */}
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)' }}>
+          <div className="label" style={{ marginBottom: 6 }}>Develop suggestion</div>
+          <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--fg)', marginBottom: 6 }}>
             {suggestion.title}
           </div>
-          <p className="mt-1 text-xs text-[var(--fg-muted)]">
+          <div style={{ fontSize: 12.5, color: 'var(--fg-muted)', lineHeight: 1.5 }}>
             {suggestion.description}
-          </p>
+          </div>
         </div>
 
-        <div className="space-y-4 px-5 py-4">
-          <div>
-            <label className="block text-xs font-medium uppercase tracking-wider text-[var(--fg-muted)]">
-              Additional instruction (optional)
-            </label>
+        {/* Body */}
+        <div style={{ padding: '20px 24px' }}>
+          <div className="form-field">
+            <label className="form-label">Additional instruction <span style={{ color: 'var(--fg-dim)', fontWeight: 400 }}>(optional)</span></label>
             <textarea
               value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              rows={5}
+              onChange={e => setPrompt(e.target.value)}
+              rows={4}
               disabled={busy}
-              className="mt-1.5 w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--fg)] placeholder:text-[var(--fg-muted)] focus:border-[var(--accent)] focus:outline-none"
-              placeholder="e.g. Use the /en/ route too, prefer the existing schema component, avoid touching the layout file…"
+              className="form-input"
+              style={{ resize: 'vertical', fontFamily: 'inherit' }}
+              placeholder="e.g. Use the existing schema component, avoid touching the layout file…"
             />
-            <p className="mt-1 text-xs text-[var(--fg-muted)]">
-              This is appended to the prompt Claude Code receives. Leave blank
-              and use &quot;Develop without prompt&quot; to implement as-is.
-            </p>
+            <div className="form-hint">
+              Appended to the Claude Code prompt. Leave blank to implement as-is.
+            </div>
           </div>
 
           {error && (
-            <div className="rounded-md bg-rose-900/30 px-3 py-2 text-xs text-rose-200">
+            <div style={{
+              background: 'var(--danger-soft)', border: '1px solid #fecdd3',
+              borderRadius: 7, padding: '10px 14px',
+              fontSize: 12.5, color: 'var(--danger)', marginTop: 14,
+            }}>
               {error}
             </div>
           )}
         </div>
 
-        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--border)] px-5 py-3">
-          <Button variant="ghost" onClick={onClose} disabled={busy}>
-            Cancel
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => fire(false)}
-            disabled={busy}
-          >
-            {busy ? "Dispatching…" : "Develop without prompt"}
-          </Button>
-          <Button onClick={() => fire(true)} disabled={promptDisabled}>
+        {/* Footer */}
+        <div style={{
+          padding: '14px 24px', borderTop: '1px solid var(--border)',
+          display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8,
+        }}>
+          <button className="btn btn-secondary" onClick={onClose} disabled={busy}>Cancel</button>
+          <button className="btn btn-secondary" onClick={() => fire(false)} disabled={busy}>
+            {busy ? "Dispatching…" : "Develop as-is"}
+          </button>
+          <button className="btn btn-primary" onClick={() => fire(true)} disabled={busy || !prompt.trim()}>
             {busy ? "Dispatching…" : "Develop with prompt"}
-          </Button>
+          </button>
         </div>
       </div>
     </div>
