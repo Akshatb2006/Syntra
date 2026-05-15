@@ -1,0 +1,20 @@
+{
+  "name": "apartmenthub-mcp-server",
+  "version": "1.0.0",
+  "description": "Centralized MCP server for ApartmentHub",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "@octokit/rest": "^21.1.1",
+    "@supabase/supabase-js": "^2.87.1",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "glob": "^11.0.2",
+    "zod": "^4.3.6"
+  }
+}

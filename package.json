@@ -1,0 +1,20 @@
+{
+  "name": "autonomous-growth-engineer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Multi-agent autonomous SEO growth engineer for real-estate websites",
+  "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "mcp:dev": "pnpm --filter @growth/mcp-server dev",
+    "mcp:start": "pnpm --filter @growth/mcp-server start",
+    "dashboard:dev": "pnpm --filter @growth/dashboard dev",
+    "dashboard:build": "pnpm --filter @growth/dashboard build",
+    "demo:dev": "pnpm --filter @growth/demo-site dev",
+    "demo:build": "pnpm --filter @growth/demo-site build",
+    "tunnel": "cloudflared tunnel --url http://localhost:3100",
+    "typecheck": "pnpm -r typecheck"
+  }
+}

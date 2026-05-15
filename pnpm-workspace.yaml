@@ -1,0 +1,5 @@
+packages:
+  - "mcp-server"
+  - "dashboard"
+  - "demo-site"
+  - "packages/*"

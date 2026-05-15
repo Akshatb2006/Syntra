@@ -1,0 +1,28 @@
+services:
+  mcp-server:
+    build:
+      context: .
+      args:
+        REPO_URL: ${REPO_URL:-https://github.com/your-org/ApartmentHub.git}
+    ports:
+      - "${PORT:-3100}:3100"
+    env_file:
+      - .env
+    restart: unless-stopped
+    volumes:
+      - repo-data:/app/repo
+      - logs-data:/app/logs
+
+  # Optional: Cloudflare Tunnel for HTTPS (recommended)
+  # cloudflared:
+  #   image: cloudflare/cloudflared:latest
+  #   command: tunnel --no-autoupdate run
+  #   environment:
+  #     - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+  #   restart: unless-stopped
+  #   depends_on:
+  #     - mcp-server
+
+volumes:
+  repo-data:
+  logs-data:
