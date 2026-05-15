@@ -41,6 +41,13 @@ export default function RunDetailPage({
   const { events, connected } = useSse<PlatformEvent>(`/api/runs/${id}/events`);
   const [activeTab, setActiveTab] = useState("timeline");
   const [mounted, setMounted] = useState(false);
+  const [latestDeployment, setLatestDeployment] = useState<{
+    url: string;
+    state: string;
+    target: string | null;
+    commitRef: string | null;
+    created: number;
+  } | null>(null);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -49,9 +56,28 @@ export default function RunDetailPage({
     if (r.ok) setData((await r.json()) as DetailResponse);
   }
 
+  async function refreshDeployment() {
+    try {
+      const r = await fetch(`/api/runs/${id}/latest-deployment`);
+      if (!r.ok) return; // 412 (no creds) / 502 (vercel down) — silently hide the chip
+      const j = (await r.json()) as {
+        deployment: typeof latestDeployment;
+      };
+      setLatestDeployment(j.deployment);
+    } catch {
+      // network blip — keep previous value
+    }
+  }
+
   useEffect(() => {
     void refresh();
     const t = setInterval(refresh, 4000);
+    return () => clearInterval(t);
+  }, [id]);
+
+  useEffect(() => {
+    void refreshDeployment();
+    const t = setInterval(refreshDeployment, 15000);
     return () => clearInterval(t);
   }, [id]);
 
@@ -128,6 +154,17 @@ export default function RunDetailPage({
             <span>{run.status}</span>
           </div>
           {run.prUrl && <a className="header-link primary" href={run.prUrl} target="_blank" rel="noreferrer">PR <span className="ext">↗</span></a>}
+          {latestDeployment && (
+            <a
+              className="header-link"
+              href={latestDeployment.url}
+              target="_blank"
+              rel="noreferrer"
+              title={`${latestDeployment.state}${latestDeployment.target ? ` · ${latestDeployment.target}` : ""}${latestDeployment.commitRef ? ` · ${latestDeployment.commitRef}` : ""}`}
+            >
+              Latest deploy <span className="ext">↗</span>
+            </a>
+          )}
           {run.previewUrl && <a className="header-link" href={run.previewUrl} target="_blank" rel="noreferrer">Preview <span className="ext">↗</span></a>}
         </>,
         portalTarget

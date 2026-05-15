@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 
 export function AppHeader() {
   const pathname = usePathname();
+  if (pathname === "/") return null; // landing page renders its own nav
   const isRunDetail = pathname?.startsWith("/runs/") && pathname !== "/runs/new";
 
   return (
@@ -13,7 +14,7 @@ export function AppHeader() {
         <div className="brand-text">Syntra</div>
       </div>
       <nav className="nav">
-        <Link href="/" className={pathname === "/" ? "current" : ""}>Runs</Link>
+        <Link href="/runs" className={pathname === "/runs" ? "current" : ""}>Runs</Link>
         <Link href="/runs/new" className={pathname === "/runs/new" ? "current" : ""}>New Run</Link>
         <Link href="/connect" className={pathname === "/connect" ? "current" : ""}>Connect</Link>
       </nav>

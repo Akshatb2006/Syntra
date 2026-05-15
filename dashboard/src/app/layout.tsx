@@ -10,12 +10,12 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" data-theme="dark" suppressHydrationWarning>
+    <html lang="en" data-theme="light" suppressHydrationWarning>
       <body>
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "try{document.documentElement.dataset.theme=localStorage.getItem('syntra-theme')==='light'?'light':'dark'}catch{document.documentElement.dataset.theme='dark'}",
+              "try{document.documentElement.dataset.theme=localStorage.getItem('syntra-theme')==='dark'?'dark':'light'}catch{document.documentElement.dataset.theme='light'}",
           }}
         />
         <div className="app">

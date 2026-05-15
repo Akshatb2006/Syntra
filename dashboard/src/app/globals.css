@@ -124,7 +124,7 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .app {
   height: 100vh;
   display: grid;
-  grid-template-rows: 64px 1fr;
+  grid-template-rows: auto 1fr;
   overflow: hidden;
 }
 
