@@ -1,8 +1,23 @@
-# Autonomous Growth Engineer
+# Syntra: Autonomous Growth Engineer
 
 > Multi-agent autonomous SEO/growth pipeline for real-estate Next.js websites.
 > A run = audit → research → plan → modify (via Claude Code over MCP) → preview
 > deploy → validate, all unattended, with a verifiable trace tree.
+
+## Problem Statement
+
+Real estate websites often struggle to maintain organic visibility because SEO optimization is a manual, tedious, and continuous process. Technical audits, local keyword research (like neighborhood-specific terms), content planning, and actual code implementation require specialized knowledge and significant developer time. As a result, many sites fall behind on best practices, losing potential leads to better-optimized competitors.
+
+## Our Solution
+
+Syntra automates the entire SEO lifecycle using a multi-agent system. It provides an autonomous pipeline that:
+1. **Audits** the site using Lighthouse and custom crawlers.
+2. **Researches** hyper-local keywords using real-time search.
+3. **Plans** technical and content improvements.
+4. **Modifies** the codebase autonomously (opening PRs).
+5. **Validates** the changes against preview deployments.
+
+By coordinating specialized AI agents, Syntra acts as an always-on growth engineer, ensuring your Next.js real estate site continuously improves its search engine ranking and user experience with zero manual intervention.
 
 ## What this is
 
@@ -208,9 +223,3 @@ integration time and adjust `OmiumTransport.flush()` if needed.
   always renderable locally even if Omium is unreachable; `OmiumTracer` is a
   best-effort batched HTTP shipper.
 
-## Reference vs new MCP
-
-The folder `reference/apartmenthub-mcp/` is a working MCP server from another
-project (ApartmentHub). It is **pattern source only** — the new `mcp-server/`
-in this repo is built from scratch and is generic (per-run workspaces, any
-GitHub repo). Do not extend the reference; treat it as documentation.
