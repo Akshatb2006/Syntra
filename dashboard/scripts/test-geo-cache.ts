@@ -133,6 +133,7 @@ async function main() {
     city: CITY,
     localities: LOCALITIES,
     siteUrl: "https://test.example.com",
+    industry: "Real Estate",
   });
   const elapsed = Date.now() - t0;
   if (result.topOpportunities[0]?.locality !== "Whitefield") {

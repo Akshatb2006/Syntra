@@ -7,6 +7,8 @@ export interface GeoIntelInput {
   city: string;
   localities: string[];
   siteUrl: string;
+  /** Industry label so keyword/intent generation fits the business. */
+  industry: string;
 }
 
 export interface GeoIntelOutput {
@@ -15,6 +17,12 @@ export interface GeoIntelOutput {
     locality: string;
     score: number;
     rationale: string;
+    /**
+     * Demand signals found via web search (competitor pages that rank, SERP
+     * presence for "<service> <locality>"). Used to gate locality_page findings
+     * so they're backed by observed demand, not just "it's location-based".
+     */
+    evidence?: string[];
   }>;
 }
 
@@ -69,7 +77,7 @@ export class GeoIntelAgent extends BaseAgent<GeoIntelInput, GeoIntelOutput> {
         {
           name: "web_search",
           description:
-            "Search the web for locality intelligence (landmarks, metro, schools, search-intent keywords). Use queries like 'apartments near Whitefield metro' or 'best schools Sarjapur road'.",
+            "Search the web for local intelligence about an area (landmarks, transit, points of interest, local search-intent keywords). Use queries like '<service> near <area>' or 'best <service> in <area>'.",
           input_schema: {
             type: "object",
             properties: {
@@ -85,14 +93,14 @@ export class GeoIntelAgent extends BaseAgent<GeoIntelInput, GeoIntelOutput> {
         },
       ];
 
-      const system = `You are the Geo Intelligence Agent for an autonomous growth-engineering platform focused on real-estate websites.
-For each locality in the input, you will produce:
-- a list of 3-6 nearby landmarks (tech parks, metros, schools, malls, hospitals),
-- a list of 3-6 high-intent search keywords (e.g. "2BHK near Whitefield metro", "apartments in Sarjapur near Wipro"),
-- 2-4 distinct search intents (rent vs buy, family vs IT, etc.),
+      const system = `You are the Local Intelligence Agent for an autonomous growth-engineering platform. The target is a ${input.industry} business that serves customers in specific areas.
+For each area/locality in the input, you will produce:
+- a list of 3-6 nearby landmarks or points of interest relevant to this business's customers (transit, hubs, schools, malls, hospitals, offices),
+- a list of 3-6 high-intent local search keywords for a ${input.industry} business (e.g. "${input.industry} near <area>", "best <service> in <area>"),
+- 2-4 distinct search intents,
 - a tight keyword cluster (5-10 short terms).
 
-Use the web_search tool sparingly — make at most 1 search per locality, and only when your training data is clearly insufficient for that specific place.
+For each area you rank as a top opportunity, use web_search ONCE for "<service> <area>" (or "best <service> in <area>") to observe real demand: which competitor sites/pages already rank, and whether there is visible local search activity. Record what you actually observed as evidence — do NOT invent search volumes (we have no volume data).
 
 Then output ONLY a single JSON object matching this schema, no prose:
 {
@@ -106,9 +114,16 @@ Then output ONLY a single JSON object matching this schema, no prose:
     }
   },
   "topOpportunities": [
-    { "locality": "...", "score": 0..100, "rationale": "..." }
+    {
+      "locality": "...",
+      "score": 0..100,
+      "rationale": "...",
+      "evidence": ["competitor X ranks for '<service> <area>'", "N local results for '<service> <area>'"]
+    }
   ]
-}`;
+}
+
+The "evidence" array must reflect ONLY what web_search actually returned (competitor domains seen, result counts, SERP observations). If you ran no search for an area, leave its evidence empty — never fabricate demand figures.`;
 
       const userPrompt = `City: ${input.city}
 Target site: ${input.siteUrl}

@@ -41,31 +41,24 @@ export class TavilySearchClient implements SearchPort {
 }
 
 /**
- * Stub fallback — returns plausible-looking results so the geo agent can still
- * run when no search provider is configured. Demo-safe; should not ship as-is
- * if a real provider is available.
+ * Honest no-op search. When no search provider is configured we return NO
+ * results rather than fabricating any — local intelligence then relies solely
+ * on the model's own knowledge, and search is reported as unavailable. We never
+ * invent search results: investors forgive limitations, not fabricated output.
  */
-export class StubSearchClient implements SearchPort {
-  async search(query: string): Promise<SearchResult[]> {
-    const tokens = query.toLowerCase().match(/[a-z]+/g) ?? [];
-    const locality = tokens.find((t) =>
-      ["whitefield", "sarjapur", "indiranagar", "koramangala", "electronic", "devanahalli"].includes(t),
-    );
-    return [
-      {
-        title: `Best ${locality ?? "Bangalore"} apartments — guide`,
-        url: `https://example.com/${locality ?? "bangalore"}-guide`,
-        snippet: `An overview of ${locality ?? "Bangalore"} as a residential locality, schools, transit, top builders, and price trends.`,
-      },
-      {
-        title: `${locality ?? "Bangalore"} — nearby landmarks and metro connectivity`,
-        url: `https://example.com/${locality ?? "bangalore"}-landmarks`,
-        snippet: `Key landmarks near ${locality ?? "Bangalore"}: tech parks, metro stations, shopping, schools, hospitals.`,
-      },
-    ];
+export class UnavailableSearchClient implements SearchPort {
+  private warned = false;
+  async search(): Promise<SearchResult[]> {
+    if (!this.warned) {
+      logger.warn("search_unavailable", {
+        reason: "no TAVILY_API_KEY configured — returning no results",
+      });
+      this.warned = true;
+    }
+    return [];
   }
 }
 
 export function getSearch(): SearchPort {
-  return env.tavilyKey ? new TavilySearchClient() : new StubSearchClient();
+  return env.tavilyKey ? new TavilySearchClient() : new UnavailableSearchClient();
 }
