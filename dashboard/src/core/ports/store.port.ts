@@ -13,6 +13,15 @@ export interface RunsRepoPort {
   list(limit?: number): Run[];
   patchStatus(runId: string, status: RunStatus): void;
   patch(runId: string, fields: Partial<Run>): void;
+  /**
+   * Attach a repo + credentials to an existing audit-only run when the user
+   * decides to implement a fix. Updates the input's repoUrl and the
+   * credentials_ref column.
+   */
+  attachRepo(
+    runId: string,
+    fields: { repoUrl?: string; credentialsRef?: string },
+  ): void;
 }
 
 export interface StepsRepoPort {

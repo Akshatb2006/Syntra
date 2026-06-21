@@ -24,5 +24,11 @@ export function getDb(): Db {
     }
   };
   safeAlter("ALTER TABLE runs ADD COLUMN credentials_ref TEXT NOT NULL DEFAULT ''");
+  // Deficit-centric suggestion fields (issue / measured evidence / implementation).
+  safeAlter("ALTER TABLE suggestions ADD COLUMN issue TEXT NOT NULL DEFAULT ''");
+  safeAlter("ALTER TABLE suggestions ADD COLUMN evidence_json TEXT NOT NULL DEFAULT '[]'");
+  safeAlter("ALTER TABLE suggestions ADD COLUMN implementation TEXT NOT NULL DEFAULT ''");
+  // Finding confidence/provenance (0..1). Default 1 keeps legacy rows neutral.
+  safeAlter("ALTER TABLE suggestions ADD COLUMN confidence REAL NOT NULL DEFAULT 1");
   return db;
 }

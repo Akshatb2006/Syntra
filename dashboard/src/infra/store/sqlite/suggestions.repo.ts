@@ -1,4 +1,8 @@
-import type { Suggestion, SuggestionCategory } from "@growth/shared/types";
+import type {
+  Suggestion,
+  SuggestionCategory,
+  SuggestionEvidence,
+} from "@growth/shared/types";
 import type { SuggestionsRepoPort } from "@/core/ports/store.port";
 import { getDb } from "./client";
 
@@ -7,8 +11,12 @@ interface Row {
   run_id: string;
   category: string;
   title: string;
+  issue: string | null;
+  evidence_json: string | null;
+  confidence: number | null;
   description: string;
   rationale: string;
+  implementation: string | null;
   expected_impact: string;
   risk: string;
   priority_score: number;
@@ -25,8 +33,14 @@ function toSuggestion(row: Row): Suggestion {
     runId: row.run_id,
     category: row.category as SuggestionCategory,
     title: row.title,
+    issue: row.issue ?? "",
+    evidence: row.evidence_json
+      ? (JSON.parse(row.evidence_json) as SuggestionEvidence[])
+      : [],
+    confidence: row.confidence ?? 1,
     description: row.description,
     rationale: row.rationale,
+    implementation: row.implementation ?? "",
     expectedImpact: row.expected_impact as Suggestion["expectedImpact"],
     risk: row.risk as Suggestion["risk"],
     priorityScore: row.priority_score,
@@ -44,10 +58,12 @@ export const suggestionsRepo: SuggestionsRepoPort = {
   insertMany(suggestions) {
     const stmt = getDb().prepare(
       `INSERT OR REPLACE INTO suggestions (
-        id, run_id, category, title, description, rationale, expected_impact, risk,
+        id, run_id, category, title, issue, evidence_json, confidence, description, rationale,
+        implementation, expected_impact, risk,
         priority_score, target_files_json, geo_context_json, status, dispatch_job_id, pr_number
       ) VALUES (
-        @id, @runId, @category, @title, @description, @rationale, @expectedImpact, @risk,
+        @id, @runId, @category, @title, @issue, @evidence, @confidence, @description, @rationale,
+        @implementation, @expectedImpact, @risk,
         @priorityScore, @targetFiles, @geoContext, @status, @dispatchJobId, @prNumber
       )`,
     );
@@ -58,8 +74,12 @@ export const suggestionsRepo: SuggestionsRepoPort = {
           runId: s.runId,
           category: s.category,
           title: s.title,
+          issue: s.issue ?? "",
+          evidence: JSON.stringify(s.evidence ?? []),
+          confidence: typeof s.confidence === "number" ? s.confidence : 1,
           description: s.description,
           rationale: s.rationale,
+          implementation: s.implementation ?? "",
           expectedImpact: s.expectedImpact,
           risk: s.risk,
           priorityScore: s.priorityScore,

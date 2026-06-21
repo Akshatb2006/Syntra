@@ -125,4 +125,22 @@ export const runsRepo: RunsRepoPort = {
         completedAt: merged.completedAt,
       });
   },
+  attachRepo(runId, fields) {
+    const cur = this.get(runId);
+    if (!cur) return;
+    const input = {
+      ...cur.input,
+      ...(fields.repoUrl ? { repoUrl: fields.repoUrl } : {}),
+    };
+    getDb()
+      .prepare(
+        `UPDATE runs SET input_json = @input, credentials_ref = @credentialsRef, updated_at = @updatedAt WHERE id = @id`,
+      )
+      .run({
+        id: runId,
+        input: JSON.stringify(input),
+        credentialsRef: fields.credentialsRef ?? cur.credentialsRef,
+        updatedAt: Date.now(),
+      });
+  },
 };
