@@ -18,8 +18,21 @@ export const suggestionSchema = z.object({
   runId: z.string().min(1),
   category: suggestionCategoryEnum,
   title: z.string().min(1),
+  issue: z.string().default(""),
+  evidence: z
+    .array(
+      z.object({
+        source: z.enum(["crawl", "lighthouse", "geo"]),
+        detail: z.string(),
+        url: z.string().optional(),
+        detectedAt: z.number().optional(),
+      }),
+    )
+    .default([]),
+  confidence: z.number().min(0).max(1).default(1),
   description: z.string(),
   rationale: z.string(),
+  implementation: z.string().default(""),
   expectedImpact: z.enum(["low", "medium", "high"]),
   risk: z.enum(["low", "medium", "high"]),
   priorityScore: z.number().min(0).max(100),

@@ -1,3 +1,5 @@
+import type { BusinessProfileHint } from "./business-profile.js";
+
 export type RunStatus =
   | "queued"
   | "crawling"
@@ -13,7 +15,13 @@ export type RunStatus =
 
 export interface RunInput {
   siteUrl: string;
-  repoUrl: string;
+  /**
+   * Repo to open PRs against. OPTIONAL — an audit-only run needs just a
+   * siteUrl. The repo (and a GitHub token) are attached later, when the user
+   * chooses to implement a fix. Value-first: prove competence before asking
+   * for access.
+   */
+  repoUrl?: string;
   branchBase?: string;
   /**
    * Primary city the site serves. Used by the Geo Intelligence agent to seed
@@ -21,6 +29,12 @@ export interface RunInput {
    * crawl content.
    */
   city?: string;
+  /**
+   * Optional operator bias for business-profile detection. When omitted, the
+   * Crawl agent infers the profile (industry, location-based, schema types)
+   * entirely from the crawl.
+   */
+  businessProfileHint?: BusinessProfileHint;
   trigger: RunTrigger;
 }
 

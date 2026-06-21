@@ -2,9 +2,17 @@ import { z } from "zod";
 
 export const runInputSchema = z.object({
   siteUrl: z.string().url(),
-  repoUrl: z.string().url(),
+  // Optional — audit-only runs need just a siteUrl. Repo is attached at
+  // implement time.
+  repoUrl: z.string().url().optional(),
   branchBase: z.string().min(1).default("main"),
   city: z.string().min(1).optional(),
+  businessProfileHint: z
+    .object({
+      industry: z.string().min(1).optional(),
+      locationBased: z.boolean().optional(),
+    })
+    .optional(),
   trigger: z.discriminatedUnion("kind", [
     z.object({ kind: z.literal("manual"), userId: z.string().min(1) }),
     z.object({
@@ -21,7 +29,9 @@ export type RunInputDto = z.infer<typeof runInputSchema>;
 
 export const createRunRequestSchema = z.object({
   input: runInputSchema,
-  credentialsRef: z.string().min(1),
+  // Optional — an audit-only run carries no credentials. They're supplied
+  // later when the user implements a fix.
+  credentialsRef: z.string().min(1).optional(),
 });
 
 export type CreateRunRequest = z.infer<typeof createRunRequestSchema>;
@@ -35,10 +45,6 @@ export const credentialsSchema = z.object({
   vercelToken: z.string().optional(),
   vercelProjectId: z.string().optional(),
   vercelTeamId: z.string().optional(),
-  // Optional future-facing integrations.
-  googlePlacesApiKey: z.string().optional(),
-  googleAnalyticsPropertyId: z.string().optional(),
-  searchConsoleSiteUrl: z.string().optional(),
 });
 
 export type Credentials = z.infer<typeof credentialsSchema>;
