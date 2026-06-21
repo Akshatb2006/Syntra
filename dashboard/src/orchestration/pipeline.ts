@@ -184,12 +184,23 @@ async function runPipeline(run: Run): Promise<void> {
     const city = inferCity(run.input);
     if (profile.locationBased && city) {
       transition(run.id, "researching");
-      geo = await new GeoIntelAgent(search).run(rootCtx, {
-        city,
-        localities: crawl.detectedLocalities,
-        siteUrl: run.input.siteUrl,
-        industry: profile.industry,
-      });
+      try {
+        geo = await new GeoIntelAgent(search).run(rootCtx, {
+          city,
+          localities: crawl.detectedLocalities,
+          siteUrl: run.input.siteUrl,
+          industry: profile.industry,
+        });
+      } catch (err) {
+        // Geo is an ENHANCEMENT, not a gate. A flaky geo response (e.g. the LLM
+        // returns prose instead of JSON) must not sink an otherwise-good audit —
+        // degrade to no geo and let the deterministic deficits stand.
+        logger.warn("geo_failed_nonfatal", {
+          runId: run.id,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        geo = { byLocality: {}, topOpportunities: [] };
+      }
     } else {
       logger.info("geo_skipped", {
         runId: run.id,
