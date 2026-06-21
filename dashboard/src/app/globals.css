@@ -704,6 +704,52 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
   font-family: 'JetBrains Mono', monospace;
 }
 .sug-desc { font-size: 14px; color: var(--fg-muted); line-height: 1.65; margin-top: 4px; }
+
+/* Deficit-centric card sections: Issue / Evidence / Implementation */
+.sug-issue { margin-top: 8px; }
+.sug-issue .label-sm,
+.sug-evidence .label-sm,
+.sug-impl .label-sm {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  margin-bottom: 3px;
+}
+.sug-issue-text { font-size: 14px; color: var(--fg); line-height: 1.55; font-weight: 500; }
+.sug-evidence { margin-top: 10px; }
+.sug-evidence-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.sug-evidence-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--fg-muted);
+}
+.ev-src {
+  flex: 0 0 auto;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-top: 1px;
+  background: var(--surface-2);
+  color: var(--fg-muted);
+}
+.ev-src.ev-lighthouse { background: rgba(120, 90, 255, 0.14); color: #8b6dff; }
+.ev-src.ev-crawl { background: rgba(0, 170, 140, 0.14); color: #14b390; }
+.ev-src.ev-geo { background: rgba(255, 150, 40, 0.16); color: #e08a2b; }
+.ev-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ev-detail { word-break: break-word; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; }
+.ev-prov { display: flex; gap: 6px; align-items: center; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--fg-faint, var(--fg-muted)); opacity: 0.75; }
+.ev-page { color: var(--accent-strong); }
+.sug-impl { margin-top: 10px; }
+.sug-impl-text { font-size: 13px; color: var(--fg-muted); line-height: 1.6; }
+
 .sug-meta {
   display: flex;
   align-items: center;

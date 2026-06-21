@@ -50,7 +50,9 @@ export default function RunsIndexPage() {
                 </div>
                 <div className="run-item-url">{run.input.siteUrl}</div>
                 <div className="run-item-repo mono">
-                  {run.input.repoUrl.replace("https://github.com/", "")}
+                  {run.input.repoUrl
+                    ? run.input.repoUrl.replace("https://github.com/", "")
+                    : "audit only"}
                 </div>
               </div>
               <div className="run-item-meta">

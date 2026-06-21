@@ -5,7 +5,7 @@ import { AppHeader } from "@/ui/components/AppHeader";
 export const metadata = {
   title: "Syntra",
   description:
-    "Syntra multi-agent SEO/growth pipeline for real-estate websites.",
+    "Syntra — the autonomous, multi-agent SEO engineer that ships pull requests for sites in any industry.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

@@ -1,10 +1,11 @@
 import Link from "next/link";
+import { HeroAuditForm } from "@/ui/components/HeroAuditForm";
 import "./landing.css";
 
 export const metadata = {
-  title: "Syntra — Autonomous SEO for real-estate Next.js sites",
+  title: "Syntra — The autonomous SEO engineer that ships pull requests",
   description:
-    "An autonomous agent that audits, plans, and ships SEO improvements to your Next.js real-estate site. Watch it work in real time.",
+    "Syntra crawls your site, plans the highest-impact SEO improvements, and opens real pull requests against your repo — for any industry. Watch it work in real time.",
 };
 
 export default function LandingPage() {
@@ -30,28 +31,29 @@ export default function LandingPage() {
       </nav>
 
       {/* HERO */}
-      <header className="hero">
+      <header className="hero" id="top">
         <div className="hero-grid-bg" />
         <div className="container hero-inner">
           <div className="eyebrow">
             <span className="dot" />
-            Now running on 47 real-estate sites
+            Detect → Plan → Implement → Validate
           </div>
           <h1 className="hero-title">
-            An agent that <em>ships SEO fixes</em> to your real-estate site while you sleep.
+            An agent that <em>ships SEO fixes</em> to your site while you sleep.
           </h1>
           <p className="hero-sub">
-            It crawls your site, studies your city, plans the highest-impact improvements,
-            opens pull requests against your repo, and only ships what passes Lighthouse.
-            You watch it work in real time.
+            It crawls your site, detects what kind of business it is, plans the
+            highest-impact improvements, opens pull requests against your repo, and
+            only flags what passes Lighthouse. You watch it work in real time.
           </p>
+          <HeroAuditForm />
           <div className="hero-ctas">
-            <Link className="lp-btn lp-btn-primary" href="/runs">
-              Start a free run <span className="ext">→</span>
-            </Link>
             <a className="lp-btn lp-btn-secondary" href="#how">
               See how it works
             </a>
+            <Link className="lp-btn lp-btn-secondary" href="/runs">
+              Recent runs
+            </Link>
           </div>
           <div className="hero-meta">
             <span className="row"><span className="check">✓</span> No code changes by you</span>
@@ -92,7 +94,7 @@ export default function LandingPage() {
                   </div>
                   <div className="pp-step-body">
                     <div className="pp-step-title">Research</div>
-                    <div className="pp-step-meta">Austin, TX</div>
+                    <div className="pp-step-meta">search intent</div>
                   </div>
                 </div>
 
@@ -137,9 +139,9 @@ export default function LandingPage() {
                   <div className="pp-sug-row">
                     <div>
                       <span className="pp-sug-title">
-                        Add hyperlocal landing pages for 6 Austin neighborhoods
+                        Add FAQ structured data to the top 6 landing pages
                       </span>
-                      <span className="pp-sug-cat">locality_page</span>
+                      <span className="pp-sug-cat">structured_data</span>
                     </div>
                     <span className="pp-pill high">HIGH</span>
                   </div>
@@ -163,7 +165,7 @@ export default function LandingPage() {
                   <div className="pp-sug-row">
                     <div>
                       <span className="pp-sug-title">
-                        Add JSON-LD RealEstateAgent schema to layout
+                        Add JSON-LD Organization schema to layout
                       </span>
                       <span className="pp-sug-cat">structured_data</span>
                     </div>
@@ -184,7 +186,7 @@ export default function LandingPage() {
                   <div className="pp-sug-row">
                     <div>
                       <span className="pp-sug-title">
-                        Generate sitemap.xml with all property routes
+                        Generate sitemap.xml covering all routes
                       </span>
                       <span className="pp-sug-cat">sitemap_robots</span>
                     </div>
@@ -309,7 +311,7 @@ export default function LandingPage() {
             <div className="pipe-step">
               <div className="pipe-num">02</div>
               <h3>Research</h3>
-              <p>Discovers the landmarks, neighborhoods, and search intents that matter in your city.</p>
+              <p>Analyzes search visibility — the keywords, topics, and (for local businesses) the areas and intents that matter in your market.</p>
               <div className="arrow">→</div>
             </div>
             <div className="pipe-step">
@@ -337,9 +339,9 @@ export default function LandingPage() {
       <section className="lp-section" style={{ paddingTop: 0 }}>
         <div className="container">
           <div style={{ maxWidth: 760, marginBottom: 56 }}>
-            <span className="lp-section-eyebrow">Why owners run it</span>
+            <span className="lp-section-eyebrow">Why teams run it</span>
             <h2 className="lp-section-title">
-              Get found by buyers searching your city — without hiring an SEO team.
+              Get found by the people searching for you — without hiring an SEO team.
             </h2>
           </div>
 
@@ -352,14 +354,15 @@ export default function LandingPage() {
                   <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
                 </svg>
               </div>
-              <h3>Built for hyperlocal search</h3>
+              <h3>Adapts to any industry</h3>
               <p>
-                Listings only convert when locals find them. The research agent maps your
-                city&apos;s neighborhoods, landmarks, and the actual phrases buyers type.
+                Syntra detects what kind of business your site is — SaaS, healthcare,
+                e-commerce, local services — and tailors the audit, schema, and content
+                to it. Location-based? It layers in local search intelligence too.
               </p>
               <div className="benefit-stat">
-                <span className="num">6×</span>
-                <span className="lbl">more locality pages per run</span>
+                <span className="num">∞</span>
+                <span className="lbl">industries, one engine</span>
               </div>
             </div>
             <div className="benefit">
@@ -392,8 +395,8 @@ export default function LandingPage() {
                 on a Vercel preview deploy and only flagged a win if the numbers actually move.
               </p>
               <div className="benefit-stat">
-                <span className="num">+22</span>
-                <span className="lbl">avg Lighthouse SEO gain</span>
+                <span className="num">A/B</span>
+                <span className="lbl">before vs. after on every PR</span>
               </div>
             </div>
           </div>
@@ -404,56 +407,61 @@ export default function LandingPage() {
       <section className="lp-section proof-section" id="proof">
         <div className="container">
           <div style={{ maxWidth: 760 }}>
-            <span className="lp-section-eyebrow">Proof</span>
+            <span className="lp-section-eyebrow">How a run looks</span>
             <h2 className="lp-section-title">
               From &quot;needs work&quot; to &quot;good in every category&quot; — in one run.
             </h2>
             <p className="lp-section-sub">
-              A real Austin-based realty site, audited and improved across four Lighthouse
-              categories. Five minutes of agent time, four pull requests, all reviewed and
-              merged by the owner.
+              An illustrative run: a site audited and improved across four Lighthouse
+              categories in a few minutes of agent time, every change a reviewable pull
+              request. Each run shows the real before/after from your own preview deploy.
             </p>
           </div>
 
-          <div className="proof-grid">
-            {/* BEFORE */}
-            <div className="proof-card">
-              <div className="lbl">Baseline · acme-realty.com</div>
-              <div className="proof-gauges">
-                <ProofGauge value={62} stroke="#b45309" dash={140.2} label="Perf" />
-                <ProofGauge value={88} stroke="#15803d" dash={199.1} label="A11y" />
-                <ProofGauge value={92} stroke="#15803d" dash={208.1} label="Best" />
-                <ProofGauge value={71} stroke="#b45309" dash={160.6} label="SEO" />
-              </div>
-            </div>
-
-            {/* ARROW */}
-            <div className="proof-delta">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="5" y1="12" x2="19" y2="12" />
-                <polyline points="12 5 19 12 12 19" />
-              </svg>
-              <span>5 min</span>
-            </div>
-
-            {/* AFTER */}
-            <div className="proof-card after">
-              <div className="lbl">After preview deploy</div>
-              <div className="proof-gauges">
-                <ProofGauge value={92} stroke="#15803d" dash={208.1} label="Perf" />
-                <ProofGauge value={96} stroke="#15803d" dash={215.9} label="A11y" />
-                <ProofGauge value={99} stroke="#15803d" dash={222.6} label="Best" />
-                <ProofGauge value={97} stroke="#15803d" dash={220.4} label="SEO" />
-              </div>
+          <div className="proof-card" style={{ marginTop: 8 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "stretch",
+                justifyContent: "space-between",
+                gap: 12,
+                flexWrap: "wrap",
+              }}
+            >
+              {[
+                { t: "Before score", d: "Baseline Lighthouse on your live site" },
+                { t: "Syntra analysis", d: "Crawl, detect the business, plan the highest-impact fixes" },
+                { t: "Optimization PR", d: "Claude Code opens one reviewable pull request" },
+                { t: "Validation", d: "Re-run Lighthouse on the Vercel preview deploy" },
+                { t: "Improved score", d: "Merge only what measurably moved" },
+              ].map((s, i) => (
+                <div
+                  key={s.t}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    flex: "1 1 0",
+                    minWidth: 150,
+                  }}
+                >
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>{s.t}</div>
+                    <div style={{ fontSize: 12.5, color: "var(--fg-muted)", lineHeight: 1.45 }}>
+                      {s.d}
+                    </div>
+                  </div>
+                  {i < 4 && (
+                    <div style={{ color: "var(--fg-dim)", fontSize: 18, flexShrink: 0 }}>→</div>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
 
           <div className="proof-footer">
-            <span className="item"><span style={{ color: "var(--accent-strong)" }}>▲</span> Perf <strong>+30</strong></span>
-            <span className="item"><span style={{ color: "var(--accent-strong)" }}>▲</span> A11y <strong>+8</strong></span>
-            <span className="item"><span style={{ color: "var(--accent-strong)" }}>▲</span> Best practices <strong>+7</strong></span>
-            <span className="item"><span style={{ color: "var(--accent-strong)" }}>▲</span> SEO <strong>+26</strong></span>
-            <span className="item">4 PRs merged · 0 reverts</span>
+            <span className="item">Every change is a pull request</span>
+            <span className="item">Nothing merges until Lighthouse confirms it on your preview</span>
           </div>
         </div>
       </section>
@@ -514,9 +522,9 @@ export default function LandingPage() {
 <span class="c-key">import</span> { <span class="c-var">defineRun</span> } <span class="c-key">from</span> <span class="c-str">"@syntra/agent"</span>;
 
 <span class="c-key">export default</span> <span class="c-fn">defineRun</span>({
-  <span class="c-var">site</span>:    <span class="c-str">"https://acme-realty.com"</span>,
-  <span class="c-var">repo</span>:    <span class="c-str">"acme-co/realty-next"</span>,
-  <span class="c-var">city</span>:    <span class="c-str">"Austin, TX"</span>,
+  <span class="c-var">site</span>:    <span class="c-str">"https://your-site.com"</span>,
+  <span class="c-var">repo</span>:    <span class="c-str">"your-org/your-site"</span>,
+  <span class="c-var">industry</span>: <span class="c-str">"auto-detect"</span>,
   <span class="c-var">trigger</span>: { <span class="c-var">kind</span>: <span class="c-str">"github_webhook"</span> },
 
   <span class="c-var">mcp</span>: {
@@ -552,22 +560,22 @@ export default function LandingPage() {
               <div className="num">— 01</div>
               <h3>Point it at your site</h3>
               <p>
-                Paste your URL, your repo, and your city. The wizard pre-checks GitHub
+                Paste your URL, your repo, and a GitHub token. The wizard pre-checks GitHub
                 access, MCP reachability, and your Vercel project. You hit start and walk
                 away.
               </p>
               <div className="demo">
                 <div className="row">
                   <span className="ts">00:00</span>
-                  <span style={{ color: "var(--fg)" }}>site:</span> acme-realty.com
+                  <span style={{ color: "var(--fg)" }}>site:</span> your-site.com
                 </div>
                 <div className="row">
                   <span className="ts">00:00</span>
-                  <span style={{ color: "var(--fg)" }}>repo:</span> acme-co/realty-next
+                  <span style={{ color: "var(--fg)" }}>repo:</span> your-org/your-site
                 </div>
                 <div className="row">
                   <span className="ts">00:00</span>
-                  <span style={{ color: "var(--fg)" }}>city:</span> Austin, TX
+                  <span style={{ color: "var(--fg)" }}>industry:</span> auto-detected
                 </div>
                 <div className="row" style={{ color: "var(--success)" }}>
                   <span className="ts">00:01</span>✓ pre-flight passed
@@ -602,13 +610,13 @@ export default function LandingPage() {
                 merges.
               </p>
               <div className="demo">
-                <div className="row"><span className="ts">01:48</span>PR #284 opened (+87/−3)</div>
+                <div className="row"><span className="ts">01:48</span>PR opened on a feature branch</div>
                 <div className="row"><span className="ts">03:02</span>preview ready</div>
                 <div className="row" style={{ color: "var(--success)" }}>
-                  <span className="ts">03:21</span>✓ SEO 71 → 97 (+26)
+                  <span className="ts">03:21</span>✓ SEO improved on preview
                 </div>
                 <div className="row" style={{ color: "var(--success)" }}>
-                  <span className="ts">03:21</span>✓ perf 62 → 92 (+30)
+                  <span className="ts">03:21</span>✓ perf improved on preview
                 </div>
               </div>
             </div>
@@ -641,23 +649,25 @@ export default function LandingPage() {
                 <span className="plus">+</span>
               </summary>
               <div className="faq-a">
-                Next.js (App Router or Pages), deployed on Vercel, with GitHub as the
-                remote. The modifier agent understands the conventions of this stack
-                specifically — locality routes, Image components, structured-data
-                utilities — so changes feel native, not bolted on.
+                Syntra reads your repo and adapts to whatever framework it finds. It&apos;s
+                best-supported on Next.js (App Router or Pages) deployed on Vercel with
+                GitHub as the remote — that&apos;s where preview deploys and Lighthouse
+                validation are fully wired end to end. Other stacks work for the audit and
+                pull requests; the validation step depends on your preview setup.
               </div>
             </details>
 
             <details className="faq-item">
               <summary className="faq-q">
-                How does it know my city well enough to write locality pages?
+                How does it handle local / location-based SEO?
                 <span className="plus">+</span>
               </summary>
               <div className="faq-a">
-                The research agent pulls landmarks, neighborhoods, and search intents
-                from public sources (Google Places, OpenStreetMap, and Search Console if
-                you&apos;ve connected it). It then clusters those into keyword groups that
-                map to the routes your site already has — or proposes new ones.
+                Only when it matters. Syntra detects whether your business is
+                location-based; if it is, the research agent maps the areas you serve,
+                nearby landmarks, and local search intents into keyword clusters and local
+                landing-page suggestions. Online or global businesses skip this step
+                entirely — no invented geography.
               </div>
             </details>
 
@@ -693,9 +703,10 @@ export default function LandingPage() {
                 <span className="plus">+</span>
               </summary>
               <div className="faq-a">
-                Multi-tenant SaaS dashboards. Big agency workflows with 20 sites and a
-                review queue. WordPress, Shopify, or non-Next.js stacks (for now). This
-                is built for one operator running it on their own site, deeply observable.
+                Sites with no code repository to open pull requests against — some closed
+                website builders and hosted platforms. The audit and plan still run, but
+                the auto-implement step needs a repo it can push a branch to. If you can
+                give Syntra a GitHub repo, it can ship.
               </div>
             </details>
           </div>
@@ -711,9 +722,9 @@ export default function LandingPage() {
             URL&quot; to a Lighthouse-validated pull request waiting in GitHub.
           </p>
           <div className="ctas">
-            <Link className="lp-btn lp-btn-primary" href="/runs">
-              Start a free run <span className="ext">→</span>
-            </Link>
+            <a className="lp-btn lp-btn-primary" href="#top">
+              Analyze my site <span className="ext">→</span>
+            </a>
             <a className="lp-btn lp-btn-secondary" href="#how">
               How it works
             </a>
@@ -731,8 +742,8 @@ export default function LandingPage() {
                 <div className="lp-brand-text">Syntra</div>
               </div>
               <p>
-                An autonomous SEO pipeline for real-estate Next.js sites. Built by one
-                operator, for one operator.
+                The autonomous SEO engineer that ships real pull requests — for any
+                industry, on your own repo.
               </p>
             </div>
             <div className="foot-col">
@@ -787,49 +798,6 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
-    </div>
-  );
-}
-
-function ProofGauge({
-  value,
-  stroke,
-  dash,
-  label,
-}: {
-  value: number;
-  stroke: string;
-  dash: number;
-  label: string;
-}) {
-  return (
-    <div className="proof-gauge">
-      <svg viewBox="0 0 84 84">
-        <circle cx="42" cy="42" r="36" fill="none" stroke="#ecece6" strokeWidth="6" />
-        <circle
-          cx="42"
-          cy="42"
-          r="36"
-          fill="none"
-          stroke={stroke}
-          strokeWidth="6"
-          strokeDasharray={`${dash} 226.2`}
-          transform="rotate(-90 42 42)"
-          strokeLinecap="round"
-        />
-        <text
-          x="42"
-          y="48"
-          textAnchor="middle"
-          fontSize="20"
-          fontWeight="600"
-          fill="#111114"
-          fontFamily="JetBrains Mono"
-        >
-          {value}
-        </text>
-      </svg>
-      <div className="lbl-g">{label}</div>
     </div>
   );
 }

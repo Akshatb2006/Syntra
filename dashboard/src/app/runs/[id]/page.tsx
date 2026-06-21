@@ -14,6 +14,9 @@ import { TraceTree } from "@/ui/components/TraceTree";
 import { LighthouseDelta } from "@/ui/components/LighthouseDelta";
 import { SuggestionList } from "@/ui/components/SuggestionList";
 import { DevelopDialog } from "@/ui/components/DevelopDialog";
+import { SiteUnderstanding } from "@/ui/components/SiteUnderstanding";
+import { SearchHealth } from "@/ui/components/SearchHealth";
+import { executionUnlocked } from "@/lib/plan";
 import { useSse } from "@/ui/hooks/useSse";
 
 interface DetailResponse {
@@ -39,7 +42,7 @@ export default function RunDetailPage({
   const [data, setData] = useState<DetailResponse | null>(null);
   const [developTarget, setDevelopTarget] = useState<Suggestion | null>(null);
   const { events, connected } = useSse<PlatformEvent>(`/api/runs/${id}/events`);
-  const [activeTab, setActiveTab] = useState("timeline");
+  const [activeTab, setActiveTab] = useState("results");
   const [mounted, setMounted] = useState(false);
   const [latestDeployment, setLatestDeployment] = useState<{
     url: string;
@@ -102,7 +105,7 @@ export default function RunDetailPage({
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      const map: Record<string, string> = { '1': 'timeline', '2': 'trace', '3': 'suggestions', '4': 'lighthouse', '5': 'pr' };
+      const map: Record<string, string> = { '1': 'results', '2': 'timeline', '3': 'trace', '4': 'lighthouse' };
       if (map[e.key]) setActiveTab(map[e.key]);
     };
     window.addEventListener('keydown', handleKey);
@@ -113,6 +116,7 @@ export default function RunDetailPage({
     return <div className="text-sm text-[var(--fg-muted)] p-8">Loading run {id}…</div>;
   }
   const { run, steps, traces, suggestions } = data;
+  const executionLocked = !executionUnlocked();
   const isActiveRun =
     run.status !== "completed" &&
     run.status !== "failed" &&
@@ -122,7 +126,9 @@ export default function RunDetailPage({
   let repo = "repo";
   try {
     hostname = new URL(run.input.siteUrl).hostname;
-    repo = run.input.repoUrl.replace("https://github.com/", "");
+    repo = run.input.repoUrl
+      ? run.input.repoUrl.replace("https://github.com/", "")
+      : "audit only";
   } catch {}
 
   const portalTarget = mounted ? document.getElementById("header-portal-target") : null;
@@ -197,9 +203,10 @@ export default function RunDetailPage({
 
         <main className="center">
           <div className="tabs" role="tablist">
-            <button className={`tab ${activeTab === 'timeline' ? 'active' : ''}`} onClick={() => setActiveTab('timeline')}>Timeline <span className="count">{steps.length}</span> <span className="key">1</span></button>
-            <button className={`tab ${activeTab === 'trace' ? 'active' : ''}`} onClick={() => setActiveTab('trace')}>Trace <span className="count">{traces.length}</span> <span className="key">2</span></button>
-            <button className={`tab ${activeTab === 'suggestions' ? 'active' : ''}`} onClick={() => setActiveTab('suggestions')}>Suggestions <span className="count">{suggestions.length}</span> <span className="key">3</span></button>
+            <button className={`tab ${activeTab === 'results' ? 'active' : ''}`} onClick={() => setActiveTab('results')}>Results <span className="count">{suggestions.length}</span> <span className="key">1</span></button>
+            <span style={{ alignSelf: 'center', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--fg-dim)', padding: '0 12px 0 6px' }}>Advanced</span>
+            <button className={`tab ${activeTab === 'timeline' ? 'active' : ''}`} onClick={() => setActiveTab('timeline')}>Timeline <span className="count">{steps.length}</span> <span className="key">2</span></button>
+            <button className={`tab ${activeTab === 'trace' ? 'active' : ''}`} onClick={() => setActiveTab('trace')}>Trace <span className="count">{traces.length}</span> <span className="key">3</span></button>
             <button className={`tab ${activeTab === 'lighthouse' ? 'active' : ''}`} onClick={() => setActiveTab('lighthouse')}>Lighthouse <span className="key">4</span></button>
           </div>
           <div className="center-scroll">
@@ -215,7 +222,29 @@ export default function RunDetailPage({
              <section className={`pane ${activeTab === 'trace' ? 'active' : ''}`}>
                 <TraceTree spans={traces} />
              </section>
-             <section className={`pane ${activeTab === 'suggestions' ? 'active' : ''}`}>
+             <section className={`pane ${activeTab === 'results' ? 'active' : ''}`}>
+                <SearchHealth
+                  baseline={run.baselineLighthouse}
+                  opportunities={suggestions.length}
+                  analyzing={isActiveRun}
+                />
+                <SiteUnderstanding steps={steps} />
+                {executionLocked && suggestions.length > 0 && (
+                  <div style={{
+                    background: 'var(--accent-soft, #ecfdf5)',
+                    border: '1px solid #bbf7d0',
+                    borderRadius: 10,
+                    padding: '12px 16px',
+                    margin: '0 0 18px',
+                    fontSize: 13,
+                    color: 'var(--fg-muted)',
+                    lineHeight: 1.5,
+                  }}>
+                    <strong style={{ color: 'var(--fg)' }}>Trial</strong> — every finding and
+                    recommendation below is yours. Turning a fix into a real pull request is a
+                    Pro feature.
+                  </div>
+                )}
                 <SuggestionList suggestions={suggestions} onDevelop={(s) => setDevelopTarget(s)} />
              </section>
              <section className={`pane ${activeTab === 'lighthouse' ? 'active' : ''}`}>
@@ -257,6 +286,8 @@ export default function RunDetailPage({
       <DevelopDialog
         runId={id}
         suggestion={developTarget}
+        needsConnect={!run.input.repoUrl || !run.credentialsRef}
+        locked={executionLocked}
         onClose={() => setDevelopTarget(null)}
         onDispatched={() => void refresh()}
       />

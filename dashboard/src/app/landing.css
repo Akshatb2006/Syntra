@@ -189,6 +189,26 @@ html:has(.syntra-landing) { scroll-behavior: smooth; }
 }
 .syntra-landing .lp-btn-secondary:hover { border-color: var(--fg-muted); text-decoration: none; }
 .syntra-landing .lp-btn .ext { font-size: 11px; opacity: 0.7; }
+.syntra-landing .hero-audit { margin-bottom: 18px; max-width: 540px; }
+.syntra-landing .hero-audit-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.syntra-landing .hero-audit-input {
+  flex: 1 1 240px;
+  min-width: 0;
+  padding: 13px 16px;
+  font-size: 15px;
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.syntra-landing .hero-audit-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.syntra-landing .hero-audit-input::placeholder { color: var(--fg-dim); }
+.syntra-landing .hero-audit .lp-btn-primary { flex-shrink: 0; }
+.syntra-landing .hero-audit .lp-btn-primary:disabled { opacity: 0.6; cursor: default; transform: none; }
+.syntra-landing .hero-audit-note { margin-top: 10px; font-size: 13px; color: var(--fg-muted); }
+.syntra-landing .hero-audit-error { margin-top: 10px; font-size: 13px; color: var(--danger); }
 .syntra-landing .hero-meta { display: flex; flex-wrap: wrap; gap: 22px; font-size: 13px; color: var(--fg-muted); }
 .syntra-landing .hero-meta .row { display: inline-flex; align-items: center; gap: 7px; }
 .syntra-landing .hero-meta .check {

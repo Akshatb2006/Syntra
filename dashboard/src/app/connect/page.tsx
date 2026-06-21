@@ -22,9 +22,6 @@ const EMPTY_FORM = {
   vercelToken: "",
   vercelProjectId: "",
   vercelTeamId: "",
-  googlePlacesApiKey: "",
-  googleAnalyticsPropertyId: "",
-  searchConsoleSiteUrl: "",
 };
 
 function StatusIndicator({ ok, label, detail }: { ok: boolean; label: string; detail?: string }) {
@@ -211,37 +208,24 @@ export default function ConnectPage() {
                     </div>
                   )}
                   <StatusIndicator ok={status.anthropic.configured} label="Anthropic LLM" />
-                  <StatusIndicator ok={status.tavily.configured} label="Web search (Tavily)" detail={status.tavily.configured ? '' : 'stub fallback active'} />
+                  <StatusIndicator ok={status.tavily.configured} label="Web search (Tavily)" detail={status.tavily.configured ? '' : 'optional — local SEO only'} />
                   <StatusIndicator ok={status.omium.configured} label="Omium tracing" detail={status.omium.configured ? status.omium.projectId : 'local-only'} />
                 </>
               )}
             </div>
           </div>
 
-          {/* Optional analytics */}
+          {/* Coming soon — not collected yet, nothing to configure */}
           <div>
-            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--fg-dim)', marginBottom: 14 }}>Optional analytics</div>
-            <div className="sug-card">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                <Field label="Google Places API key" hint="Accurate nearby-landmark discovery">
-                  <Input
-                    type="password"
-                    value={form.googlePlacesApiKey}
-                    onChange={(e) => setForm({ ...form, googlePlacesApiKey: e.target.value })}
-                  />
-                </Field>
-                <Field label="GA4 property ID">
-                  <Input
-                    value={form.googleAnalyticsPropertyId}
-                    onChange={(e) => setForm({ ...form, googleAnalyticsPropertyId: e.target.value })}
-                  />
-                </Field>
-                <Field label="Search Console site URL">
-                  <Input
-                    value={form.searchConsoleSiteUrl}
-                    onChange={(e) => setForm({ ...form, searchConsoleSiteUrl: e.target.value })}
-                  />
-                </Field>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--fg-dim)', marginBottom: 14 }}>Coming soon</div>
+            <div className="sug-card" style={{ opacity: 0.75 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>Traffic attribution &amp; outcome validation</div>
+                <p style={{ fontSize: 13, color: 'var(--fg-muted)', lineHeight: 1.5, margin: 0 }}>
+                  GA4, Search Console, and Places integrations will close the loop —
+                  measuring the real ranking and traffic lift from each merged PR.
+                  Not collected today; there&apos;s nothing to configure yet.
+                </p>
               </div>
             </div>
           </div>

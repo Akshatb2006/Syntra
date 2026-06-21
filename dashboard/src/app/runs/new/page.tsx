@@ -11,6 +11,8 @@ export default function NewRunPage() {
   const [repoUrl, setRepoUrl] = useState("");
   const [branchBase, setBranchBase] = useState("main");
   const [city, setCity] = useState("");
+  const [industry, setIndustry] = useState("");
+  const [locationBased, setLocationBased] = useState<"auto" | "yes" | "no">("auto");
   const [credentialsRef, setCredentialsRef] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +36,16 @@ export default function NewRunPage() {
             repoUrl,
             branchBase,
             ...(city.trim() ? { city: city.trim() } : {}),
+            ...(industry.trim() || locationBased !== "auto"
+              ? {
+                  businessProfileHint: {
+                    ...(industry.trim() ? { industry: industry.trim() } : {}),
+                    ...(locationBased !== "auto"
+                      ? { locationBased: locationBased === "yes" }
+                      : {}),
+                  },
+                }
+              : {}),
             trigger: { kind: "manual", userId: "local-user" },
           },
         }),
@@ -56,8 +68,9 @@ export default function NewRunPage() {
         <div>
           <h1 className="section-title">New run</h1>
           <p className="section-sub">
-            The pipeline will crawl, audit, research locality intent, plan,
-            dispatch Claude Code, and validate the preview — autonomously.
+            The pipeline will crawl, audit, detect the business type, research
+            intent, plan, dispatch Claude Code, and validate the preview —
+            autonomously, for any industry.
           </p>
         </div>
       </div>
@@ -109,13 +122,39 @@ export default function NewRunPage() {
                 placeholder="https://yoursite.com"
               />
             </Field>
-            <Field label="GitHub repo URL" hint="HTTPS clone URL of the Next.js codebase.">
+            <Field label="GitHub repo URL" hint="HTTPS clone URL of the site's codebase.">
               <Input
                 value={repoUrl}
                 onChange={(e) => setRepoUrl(e.target.value)}
                 placeholder="https://github.com/owner/repo"
               />
             </Field>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+              <Field
+                label="Industry (optional)"
+                hint="Leave blank to auto-detect from the crawl."
+              >
+                <Input
+                  value={industry}
+                  onChange={(e) => setIndustry(e.target.value)}
+                  placeholder="SaaS, Healthcare, Real Estate, …"
+                />
+              </Field>
+              <Field
+                label="Location-based?"
+                hint="Does it serve specific places? Drives local SEO."
+              >
+                <select
+                  className="form-input"
+                  value={locationBased}
+                  onChange={(e) => setLocationBased(e.target.value as "auto" | "yes" | "no")}
+                >
+                  <option value="auto">Auto-detect</option>
+                  <option value="yes">Yes — local business</option>
+                  <option value="no">No — online / global</option>
+                </select>
+              </Field>
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
               <Field label="Base branch">
                 <Input
@@ -125,7 +164,7 @@ export default function NewRunPage() {
               </Field>
               <Field
                 label="Primary city (optional)"
-                hint="Seeds the Geo agent. Leave blank to auto-detect."
+                hint="Only used for location-based sites. Blank = auto-detect."
               >
                 <Input
                   value={city}
