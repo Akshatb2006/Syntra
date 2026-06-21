@@ -8,8 +8,9 @@ import { getMcp } from "@/infra/mcp/http.client";
 import { AnthropicClient } from "@/infra/llm/anthropic.client";
 import { getSearch } from "@/infra/search/tavily.client";
 import { CrawlSeoAgent } from "@/agents/crawl-seo.agent";
-import { GeoIntelAgent } from "@/agents/geo-intel.agent";
+import { GeoIntelAgent, type GeoIntelOutput } from "@/agents/geo-intel.agent";
 import { OrchestratorAgent } from "@/agents/orchestrator.agent";
+import { detectDeficits } from "@/orchestration/deficit-detector";
 
 function transition(runId: string, status: RunStatus): void {
   sqliteStore.runs.patchStatus(runId, status);
@@ -21,8 +22,10 @@ function transition(runId: string, status: RunStatus): void {
   });
 }
 
-function inferCity(input: RunInput): string {
-  // Prefer explicit city from the run form. Fall back to a domain heuristic.
+function inferCity(input: RunInput): string | null {
+  // Prefer the explicit city from the run form. Fall back to a light hostname
+  // heuristic. Returns null when nothing is known — the local-intel step is
+  // skipped rather than defaulting to any specific city.
   if (input.city && input.city.trim()) return input.city.trim();
   try {
     const host = new URL(input.siteUrl).hostname.toLowerCase();
@@ -49,7 +52,7 @@ function inferCity(input: RunInput): string {
   } catch {
     // ignore
   }
-  return "Bangalore";
+  return null;
 }
 
 export function parseRepoFullName(repoUrl: string): string {
@@ -60,7 +63,7 @@ export function parseRepoFullName(repoUrl: string): string {
 
 export async function createRun(
   input: RunInput,
-  credentialsRef: string,
+  credentialsRef?: string | null,
 ): Promise<Run> {
   const id = newId("run");
   const workspaceId = `ws-${id.slice(-12)}`;
@@ -69,7 +72,9 @@ export async function createRun(
     id,
     input,
     status: "queued",
-    credentialsRef,
+    // "" means "not connected yet" — an audit-only run. Credentials are
+    // attached later, at implement time.
+    credentialsRef: credentialsRef ?? "",
     workspaceId,
     prUrl: null,
     previewUrl: null,
@@ -81,8 +86,9 @@ export async function createRun(
     completedAt: null,
   };
 
-  // Verify creds exist BEFORE inserting the run.
-  if (!sqliteStore.secrets.get(credentialsRef)) {
+  // Only verify creds when this run was started WITH them. Audit-only runs
+  // carry none and that's valid.
+  if (credentialsRef && !sqliteStore.secrets.get(credentialsRef)) {
     throw new Error(`Credentials reference not found: ${credentialsRef}`);
   }
 
@@ -117,8 +123,9 @@ export async function createRun(
  * API route. The Code Modification agent is NOT auto-invoked.
  */
 async function runPipeline(run: Run): Promise<void> {
-  const creds = sqliteStore.secrets.get(run.credentialsRef);
-  if (!creds) throw new Error("Credentials missing");
+  // No credentials needed: the audit (crawl → detect → plan) runs entirely off
+  // the public site URL. The repo + token are only required later, to implement
+  // a fix.
   const tracer = getTracer();
   const mcp = getMcp();
   const search = getSearch();
@@ -136,44 +143,19 @@ async function runPipeline(run: Run): Promise<void> {
     name: "pipeline.run",
     kind: "internal",
     runId: run.id,
-    attributes: { siteUrl: run.input.siteUrl, repoUrl: run.input.repoUrl },
+    attributes: { siteUrl: run.input.siteUrl, repoUrl: run.input.repoUrl ?? null },
   });
   const rootCtx = { ...ctx, parentSpan: rootSpan };
 
   try {
-    // 1. Clone repo into MCP workspace.
+    // 1. Crawl + baseline audit — straight off the public URL (also classifies
+    //    the business profile). No repo, no credentials.
     transition(run.id, "crawling");
-    const trace = { traceId: rootSpan.traceId, parentSpanId: rootSpan.spanId };
-    const cloneSpan = tracer.startSpan({
-      name: "mcp.repo_clone",
-      kind: "mcp_request",
-      runId: run.id,
-      parentSpanId: rootSpan.spanId,
-      attributes: { repoUrl: run.input.repoUrl, traceId: rootSpan.traceId },
-    });
-    try {
-      await mcp.repoClone(
-        {
-          workspaceId: run.workspaceId,
-          repoUrl: run.input.repoUrl,
-          githubToken: creds.githubToken,
-          branchBase: run.input.branchBase ?? "main",
-        },
-        trace,
-      );
-      cloneSpan.end({ status: "ok" });
-    } catch (err) {
-      cloneSpan.end({
-        status: "error",
-        error: err instanceof Error ? err : new Error(String(err)),
-      });
-      throw err;
-    }
-
-    // 2. Crawl + baseline audit.
     const crawl = await new CrawlSeoAgent(mcp).run(rootCtx, {
       siteUrl: run.input.siteUrl,
+      profileHint: run.input.businessProfileHint,
     });
+    const profile = crawl.businessProfile;
     sqliteStore.runs.patch(run.id, {
       baselineLighthouse: {
         url: crawl.baseline.url,
@@ -185,25 +167,46 @@ async function runPipeline(run: Run): Promise<void> {
       },
     });
 
-    // 3. Geo intelligence.
-    transition(run.id, "researching");
-    const geo = await new GeoIntelAgent(search).run(rootCtx, {
-      city: inferCity(run.input),
-      localities: crawl.detectedLocalities,
-      siteUrl: run.input.siteUrl,
-    });
+    // 3. Local intelligence — only for businesses that actually serve specific
+    //    places, and only when we know which city. Otherwise it's skipped (no
+    //    fabricated geography for SaaS/blogs/global e-commerce).
+    let geo: GeoIntelOutput = { byLocality: {}, topOpportunities: [] };
+    const city = inferCity(run.input);
+    if (profile.locationBased && city) {
+      transition(run.id, "researching");
+      geo = await new GeoIntelAgent(search).run(rootCtx, {
+        city,
+        localities: crawl.detectedLocalities,
+        siteUrl: run.input.siteUrl,
+        industry: profile.industry,
+      });
+    } else {
+      logger.info("geo_skipped", {
+        runId: run.id,
+        locationBased: profile.locationBased,
+        city,
+      });
+    }
 
-    // 4. Plan & prioritize.
+    // 4. Detect deficits deterministically (measured evidence), then let the
+    //    orchestrator rank/phrase them. Evidence is computed here, in code —
+    //    the LLM cannot invent it.
     transition(run.id, "planning");
+    const findings = detectDeficits({ crawl, geo, profile });
+    logger.info("deficits_detected", { runId: run.id, count: findings.length });
+
     const plan = await new OrchestratorAgent().run(rootCtx, {
       siteUrl: run.input.siteUrl,
       crawl,
       geo,
+      profile,
+      findings,
       maxSelected: 3,
     });
 
     if (plan.suggestions.length === 0) {
-      throw new Error("Orchestrator produced zero suggestions");
+      // No measurable deficits is a valid (clean-site) outcome, not a failure.
+      logger.info("no_deficits", { runId: run.id });
     }
 
     // 5. Hand off to the user. They trigger dispatches per suggestion via the UI.

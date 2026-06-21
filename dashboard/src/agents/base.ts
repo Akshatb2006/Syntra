@@ -116,6 +116,7 @@ export abstract class BaseAgent<TInput, TOutput> {
       userPrompt: string;
       tools: Array<ToolDef<unknown, unknown>>;
       maxRounds?: number;
+      maxTokens?: number;
     },
   ): Promise<{ text: string; toolCalls: Array<{ name: string; input: unknown; output: unknown }> }> {
     const tools: LlmTool[] = input.tools.map((t) => ({
@@ -140,7 +141,7 @@ export abstract class BaseAgent<TInput, TOutput> {
         attributes: { model: this.model, round, traceId: parentSpan.traceId },
       });
       const resp = await ctx.llm
-        .call({ model: this.model, system: input.system, messages, tools })
+        .call({ model: this.model, system: input.system, messages, tools, maxTokens: input.maxTokens })
         .catch((err: unknown) => {
           llmSpan.end({
             status: "error",

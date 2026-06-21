@@ -27,7 +27,11 @@ export class AnthropicClient implements LlmPort {
         "DEPENDENCY_MISSING",
         "Anthropic API key missing — supply one via /connect or set ANTHROPIC_API_KEY in the dashboard env",
       );
-    if (!this.client) this.client = new Anthropic({ apiKey: this.apiKey });
+    // Hand the SDK Node's native `fetch`. The SDK (0.32.1) otherwise uses a
+    // bundled node-fetch shim that throws "Premature close" on Node 20+/22;
+    // global undici fetch works reliably.
+    if (!this.client)
+      this.client = new Anthropic({ apiKey: this.apiKey, fetch: globalThis.fetch });
     return this.client;
   }
 
