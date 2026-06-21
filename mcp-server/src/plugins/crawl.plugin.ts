@@ -93,6 +93,72 @@ async function fetchTextSafe(
   }
 }
 
+/** Pull every <loc>…</loc> URL out of a sitemap (or sitemap-index) XML body. */
+function extractLocs(xml: string): string[] {
+  const locs: string[] = [];
+  const re = /<loc>\s*([^<\s]+)\s*<\/loc>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(xml)) !== null) {
+    if (m[1]) locs.push(m[1].trim());
+  }
+  return locs;
+}
+
+/** Read robots.txt and return any `Sitemap:` directive URLs (case-insensitive). */
+async function sitemapsFromRobots(rootOrigin: string): Promise<string[]> {
+  const r = await fetchTextSafe(new URL("/robots.txt", rootOrigin).toString());
+  if (!r.ok || !r.text) return [];
+  const out: string[] = [];
+  for (const line of r.text.split(/\r?\n/)) {
+    const m = /^\s*sitemap\s*:\s*(\S+)/i.exec(line);
+    if (m && m[1]) out.push(m[1].trim());
+  }
+  return out;
+}
+
+/**
+ * Discover page URLs for the crawl queue. The sitemap is the most reliable list
+ * of a site's pages — so seeding from it makes depth robust even when
+ * client-side nav never renders links. We look in two places, in priority
+ * order: the `Sitemap:` directive(s) in robots.txt (where sites point to
+ * non-standard sitemap paths), then the conventional /sitemap.xml. Each
+ * candidate is expanded one level if it's a sitemap-index.
+ */
+async function discoverFromSitemap(
+  rootOrigin: string,
+  max: number,
+): Promise<{ found: boolean; urls: string[] }> {
+  // Candidate sitemap URLs, robots.txt first then the conventional location.
+  const robotsSitemaps = await sitemapsFromRobots(rootOrigin);
+  const candidates = Array.from(
+    new Set([...robotsSitemaps, new URL("/sitemap.xml", rootOrigin).toString()]),
+  );
+
+  const pageUrls: string[] = [];
+  let found = false;
+  for (const candidate of candidates) {
+    if (pageUrls.length >= max) break;
+    const res = await fetchTextSafe(candidate);
+    if (!res.ok || !res.text) continue;
+    found = true;
+    let locs = extractLocs(res.text);
+    // Sitemap index → its <loc>s are child sitemaps. Expand a few of them.
+    const childSitemaps = locs.filter((l) => /\.xml(\?|$)/i.test(l));
+    if (childSitemaps.length > 0 && childSitemaps.length === locs.length) {
+      const expanded: string[] = [];
+      for (const sm of childSitemaps.slice(0, 5)) {
+        const r = await fetchTextSafe(sm);
+        if (r.ok) expanded.push(...extractLocs(r.text));
+        if (expanded.length >= max) break;
+      }
+      locs = expanded;
+    }
+    pageUrls.push(...locs.filter((l) => l.startsWith(rootOrigin)));
+  }
+
+  return { found, urls: Array.from(new Set(pageUrls)).slice(0, max) };
+}
+
 function detectFramework(html: string, generator: string | null): string | null {
   if (generator?.toLowerCase().includes("next")) return "next.js";
   if (html.includes('id="__next"') || html.includes("/_next/")) return "next.js";
@@ -111,7 +177,7 @@ export const crawlPlugin: Plugin = {
       "Crawl a website (same origin) up to N pages. Returns metadata, structured-data types, internal/external link graph, and basic SEO signals per page.",
       {
         url: z.string().url(),
-        maxPages: z.number().int().positive().max(50).default(15),
+        maxPages: z.number().int().positive().max(60).default(30),
         sameOriginOnly: z.boolean().default(true),
       },
       async ({ url, maxPages, sameOriginOnly }) => {
@@ -129,6 +195,18 @@ export const crawlPlugin: Plugin = {
           const visited = new Set<string>();
           const pages: CrawledPage[] = [];
 
+          // P0: seed the queue from sitemap.xml so Syntra discovers /docs,
+          // /pricing, /blog, etc. without depending on nav links rendering.
+          const sitemap = await discoverFromSitemap(rootOrigin, maxPages);
+          for (const u of sitemap.urls) {
+            if (u !== queue[0] && !queue.includes(u)) queue.push(u);
+          }
+          logger.info("crawl_seeded", {
+            rootOrigin,
+            sitemapFound: sitemap.found,
+            seededUrls: sitemap.urls.length,
+          });
+
           while (queue.length > 0 && pages.length < maxPages) {
             const next = queue.shift();
             if (!next || visited.has(next)) continue;
@@ -138,6 +216,12 @@ export const crawlPlugin: Plugin = {
                 waitUntil: "domcontentloaded",
                 timeout: 30_000,
               });
+              // P1: let client-rendered nav (React / Next / Vue / Nuxt /
+              // Angular) hydrate so its <a href> links exist before we extract
+              // them. Bounded + best-effort — never fail a page on a slow idle.
+              await page
+                .waitForLoadState("networkidle", { timeout: 6_000 })
+                .catch(() => {});
               const status = resp?.status() ?? 0;
               const meta = (await page.evaluate(
                 META_EXTRACTOR(rootOrigin),
@@ -174,8 +258,7 @@ export const crawlPlugin: Plugin = {
             }
           }
 
-          const [sitemapRes, robotsRes, rootRes] = await Promise.all([
-            fetchTextSafe(new URL("/sitemap.xml", rootOrigin).toString()),
+          const [robotsRes, rootRes] = await Promise.all([
             fetchTextSafe(new URL("/robots.txt", rootOrigin).toString()),
             fetchTextSafe(rootUrl.toString()),
           ]);
@@ -187,14 +270,14 @@ export const crawlPlugin: Plugin = {
           const output: CrawlSiteOutput = {
             rootUrl: rootUrl.toString(),
             pages,
-            sitemapFound: sitemapRes.ok,
+            sitemapFound: sitemap.found,
             robotsFound: robotsRes.ok,
             framework,
           };
           logger.info("crawl_done", {
             rootUrl: rootUrl.toString(),
             pages: pages.length,
-            sitemapFound: sitemapRes.ok,
+            sitemapFound: sitemap.found,
             robotsFound: robotsRes.ok,
             framework,
           });

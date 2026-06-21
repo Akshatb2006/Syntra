@@ -1,22 +1,32 @@
 import { BaseAgent, type AgentContext, type ToolDef } from "./base";
 import { AGENTS } from "@growth/shared/constants";
-import type {
-  CrawlSiteOutput,
-  LighthouseRunOutput,
-  CrawlSiteInput,
-  LighthouseRunInput,
+import {
+  DEFAULT_BUSINESS_PROFILE,
+  type BusinessProfile,
+  type BusinessProfileHint,
+  type CrawlSiteOutput,
+  type LighthouseRunOutput,
+  type CrawlSiteInput,
+  type LighthouseRunInput,
 } from "@growth/shared/types";
 import type { McpClientPort } from "@/core/ports/mcp.port";
+import type { SpanHandle } from "@/core/ports/tracer.port";
 
 export interface CrawlSeoInput {
   siteUrl: string;
+  profileHint?: BusinessProfileHint;
 }
 
 export interface CrawlSeoOutput {
   crawl: CrawlSiteOutput;
   baseline: LighthouseRunOutput;
   auditNarrative: string;
+  /** What kind of business this is — drives every downstream prompt. */
+  businessProfile: BusinessProfile;
+  /** Geographic areas the site currently targets (empty when not location-based). */
   detectedLocalities: string[];
+  /** Breakdown of crawled pages by type — the "Site Understanding" signal. */
+  pageTypes: Array<{ type: string; count: number }>;
   framework: string | null;
 }
 
@@ -48,11 +58,14 @@ export class CrawlSeoAgent extends BaseAgent<CrawlSeoInput, CrawlSeoOutput> {
       const trace = { traceId: span.traceId, parentSpanId: span.spanId };
 
       const [crawl, baseline] = await Promise.all([
-        this.mcp.crawlSite({ url: input.siteUrl, maxPages: 12 }, trace),
+        this.mcp.crawlSite({ url: input.siteUrl, maxPages: 30 }, trace),
         this.mcp.lighthouseRun({ url: input.siteUrl, formFactor: "mobile" }, trace),
       ]);
 
-      const detectedLocalities = this.extractLocalitiesFromCrawl(crawl);
+      // Classify the business first so the audit (and everything downstream)
+      // adapts to the industry instead of assuming real estate.
+      const { profile: businessProfile, localities: detectedLocalities } =
+        await this.detectBusinessProfile(ctx, span, crawl, input.profileHint);
 
       const tools: Array<ToolDef<unknown, unknown>> = [
         {
@@ -95,13 +108,17 @@ export class CrawlSeoAgent extends BaseAgent<CrawlSeoInput, CrawlSeoOutput> {
         },
       ];
 
-      const system = `You are the Crawl & SEO Audit Agent for an autonomous growth-engineering platform that operates on real-estate websites.
+      const schemaList = businessProfile.schemaTypes.join(", ");
+      const localityLine = businessProfile.locationBased
+        ? "- local / geo-intent gaps (missing location landing pages for the areas this business serves),\n"
+        : "";
+      const system = `You are the Crawl & SEO Audit Agent for an autonomous growth-engineering platform that works on websites in any industry.
+The target site is a ${businessProfile.industry} business${businessProfile.locationBased ? " that serves customers in specific locations" : ""}.
 You will be given the crawl output (pages, metadata, links, schema) and a baseline Lighthouse report.
 Produce a concise, prioritized audit narrative that names concrete weaknesses by file/route. Focus on:
 - metadata gaps (title, description, OG, Twitter, canonical),
-- structured data gaps (RealEstateListing, Organization, BreadcrumbList, FAQPage),
-- locality / geo-intent gaps (missing locality landing pages),
-- internal linking weaknesses,
+- structured data gaps (relevant schema.org types for this business: ${schemaList}, plus Organization, BreadcrumbList, FAQPage),
+${localityLine}- internal linking weaknesses,
 - on-page accessibility / Lighthouse failures,
 - sitemap & robots.
 
@@ -126,16 +143,21 @@ Use the tools only if a specific page needs deeper inspection. Then produce the 
         maxRounds: 4,
       });
 
+      const pageTypes = this.classifyPageTypes(crawl);
       const output: CrawlSeoOutput = {
         crawl,
         baseline,
         auditNarrative,
+        businessProfile,
         detectedLocalities,
+        pageTypes,
         framework: crawl.framework,
       };
       this.completeStep(ctx, step, {
         pagesCrawled: crawl.pages.length,
         baselineScores: baseline.scores,
+        businessProfile,
+        pageTypes,
         localities: detectedLocalities,
       });
       span.end({
@@ -154,31 +176,137 @@ Use the tools only if a specific page needs deeper inspection. Then produce the 
     }
   }
 
-  private extractLocalitiesFromCrawl(crawl: CrawlSiteOutput): string[] {
-    const KNOWN = [
-      "Whitefield",
-      "Sarjapur",
-      "Indiranagar",
-      "Koramangala",
-      "Electronic City",
-      "Devanahalli",
-      "Hebbal",
-      "JP Nagar",
-      "HSR Layout",
-      "BTM",
-      "Marathahalli",
-    ];
-    const found = new Set<string>();
-    for (const page of crawl.pages) {
-      const haystack = [
-        page.title ?? "",
-        page.description ?? "",
-        page.url,
-      ].join(" ");
-      for (const loc of KNOWN) {
-        if (haystack.toLowerCase().includes(loc.toLowerCase())) found.add(loc);
+  /**
+   * Classify the business from the crawl (industry, location-based, schema
+   * types) and pull out any geographic areas the site already targets. This
+   * replaces the old hardcoded Bangalore locality list — the model reads the
+   * actual pages, so it works for any industry and any geography. Never throws:
+   * on any failure it falls back to the operator hint or a neutral profile.
+   */
+  private async detectBusinessProfile(
+    ctx: AgentContext,
+    span: SpanHandle,
+    crawl: CrawlSiteOutput,
+    hint?: BusinessProfileHint,
+  ): Promise<{ profile: BusinessProfile; localities: string[] }> {
+    const digest = crawl.pages
+      .slice(0, 10)
+      .map(
+        (p) =>
+          `- ${p.url}\n  title: ${p.title ?? "(none)"}\n  desc: ${(p.description ?? "(none)").slice(0, 160)}\n  schema: ${p.structuredDataTypes.join(", ") || "(none)"}`,
+      )
+      .join("\n");
+
+    const hintLine =
+      hint && (hint.industry || hint.locationBased !== undefined)
+        ? `\nOperator hint (trust it, fill in the rest): industry=${hint.industry ?? "?"}, locationBased=${hint.locationBased ?? "?"}.`
+        : "";
+
+    const system = `You classify what kind of business a website is, for an SEO platform that must work across ANY industry. Output ONLY a single JSON object, no prose:
+{
+  "industry": "<short label, e.g. SaaS, Healthcare, E-commerce, Real Estate, Law Firm, Restaurant, Media/Blog, Education>",
+  "locationBased": <true if the business serves customers in specific geographic places (clinics, real estate, restaurants, local services); false for global/online products (SaaS, blogs, most e-commerce)>,
+  "schemaTypes": ["<2-4 relevant schema.org types: SoftwareApplication, MedicalBusiness, RealEstateListing, Product, LocalBusiness, Restaurant, FAQPage, Organization, Article>"],
+  "audience": "<one line: who the site serves>",
+  "summary": "<one line: what the site is>",
+  "localitiesServed": ["<geographic areas / neighborhoods / cities the site currently targets; [] if none or not location-based>"]
+}`;
+
+    const userPrompt = `Site: ${crawl.rootUrl}
+Framework: ${crawl.framework ?? "(unknown)"}
+
+Crawled pages:
+${digest}${hintLine}
+
+Classify now. Output only the JSON object.`;
+
+    try {
+      const { text } = await this.toolLoop(ctx, span, {
+        system,
+        userPrompt,
+        tools: [],
+        maxRounds: 1,
+      });
+      const parsed = this.parseProfileJson(text);
+      if (parsed) {
+        const profile: BusinessProfile = {
+          industry: hint?.industry ?? parsed.industry ?? DEFAULT_BUSINESS_PROFILE.industry,
+          locationBased:
+            hint?.locationBased ?? parsed.locationBased ?? DEFAULT_BUSINESS_PROFILE.locationBased,
+          schemaTypes:
+            Array.isArray(parsed.schemaTypes) && parsed.schemaTypes.length > 0
+              ? parsed.schemaTypes
+              : DEFAULT_BUSINESS_PROFILE.schemaTypes,
+          audience: parsed.audience,
+          summary: parsed.summary,
+        };
+        const localities = profile.locationBased
+          ? (parsed.localitiesServed ?? []).filter((l): l is string => typeof l === "string")
+          : [];
+        return { profile, localities };
       }
+    } catch {
+      // fall through to the neutral fallback below
     }
-    return Array.from(found);
+
+    return {
+      profile: {
+        ...DEFAULT_BUSINESS_PROFILE,
+        ...(hint?.industry ? { industry: hint.industry } : {}),
+        ...(hint?.locationBased !== undefined ? { locationBased: hint.locationBased } : {}),
+      },
+      localities: [],
+    };
+  }
+
+  /**
+   * Bucket crawled pages into types by URL path. Deterministic and free —
+   * gives accurate counts across ALL crawled pages (an LLM sample wouldn't),
+   * and powers the "Site Understanding" panel.
+   */
+  private classifyPageTypes(
+    crawl: CrawlSiteOutput,
+  ): Array<{ type: string; count: number }> {
+    const counts: Record<string, number> = {};
+    const bump = (t: string) => {
+      counts[t] = (counts[t] ?? 0) + 1;
+    };
+    for (const p of crawl.pages) {
+      let seg = "/";
+      try {
+        seg = new URL(p.url).pathname.toLowerCase().replace(/\/+$/, "");
+      } catch {
+        // keep default
+      }
+      if (seg === "" || seg === "/") bump("Homepage");
+      else if (/\/(blog|posts?|news|articles?)(\/|$)/.test(seg)) bump("Blog");
+      else if (/\/(docs?|documentation|guides?|help|support|kb)(\/|$)/.test(seg)) bump("Docs");
+      else if (/\/(pricing|plans?)(\/|$)/.test(seg)) bump("Pricing");
+      else if (/\/(products?|features?|solutions?|services?|listings?|shop|store|collections?)(\/|$)/.test(seg)) bump("Product");
+      else if (/\/(about|company|team|contact|careers?|jobs)(\/|$)/.test(seg)) bump("Company");
+      else if (/\/(faq|faqs)(\/|$)/.test(seg)) bump("FAQ");
+      else bump("Other");
+    }
+    return Object.entries(counts)
+      .map(([type, count]) => ({ type, count }))
+      .sort((a, b) => b.count - a.count);
+  }
+
+  private parseProfileJson(text: string): {
+    industry?: string;
+    locationBased?: boolean;
+    schemaTypes?: string[];
+    audience?: string;
+    summary?: string;
+    localitiesServed?: string[];
+  } | null {
+    const start = text.indexOf("{");
+    const end = text.lastIndexOf("}");
+    if (start === -1 || end === -1) return null;
+    try {
+      return JSON.parse(text.slice(start, end + 1));
+    } catch {
+      return null;
+    }
   }
 }
