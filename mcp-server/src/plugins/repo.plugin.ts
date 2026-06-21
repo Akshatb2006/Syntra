@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, existsSync } from "node:fs";
+import { join } from "node:path";
 import { simpleGit, type SimpleGit } from "simple-git";
 import { workspaceManager } from "../workspace/manager.js";
 import { logger } from "../lib/logger.js";
@@ -40,15 +41,20 @@ export const repoPlugin: Plugin = {
           const repoPath = workspaceManager.repoPath(workspaceId);
           mkdirSync(wsPath, { recursive: true });
           const cloneUrl = authedRepoUrl(repoUrl, githubToken);
-          const cloner = simpleGit();
-          await cloner.clone(cloneUrl, repoPath, ["--depth", "50"]);
+          // Idempotent: an audit-only run may implement several fixes, each of
+          // which ensures the repo is present. Only clone if it isn't already.
+          const alreadyCloned = existsSync(join(repoPath, ".git"));
+          if (!alreadyCloned) {
+            const cloner = simpleGit();
+            await cloner.clone(cloneUrl, repoPath, ["--depth", "50"]);
+          }
           const g = git(workspaceId);
           await g.addConfig("user.name", "Growth Engineer Bot");
           await g.addConfig("user.email", "bot@growth-engineer.local");
           const headCommit = (await g.revparse(["HEAD"])).trim();
           const defaultBranch = (await g.revparse(["--abbrev-ref", "HEAD"])).trim();
           await g.fetch("origin", branchBase);
-          logger.info("repo_cloned", {
+          logger.info(alreadyCloned ? "repo_reused" : "repo_cloned", {
             workspaceId,
             repoUrl,
             defaultBranch,

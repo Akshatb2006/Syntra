@@ -1,9 +1,108 @@
 "use client";
-import type { Suggestion } from "@growth/shared/types";
+import type { Suggestion, SuggestionCategory, SuggestionEvidence } from "@growth/shared/types";
 
 interface Props {
   suggestions: Suggestion[];
   onDevelop?: (suggestion: Suggestion) => void;
+}
+
+/**
+ * Visual weight of each finding category. Tier 1 = structural/correctness
+ * deficits that are objectively measurable (schema, canonical, OG, sitemap,
+ * accessibility, locality coverage) — these dominate the screen. Tier 2 =
+ * performance. Tier 3 = pure optimization. This is the "hierarchy of findings":
+ * not all deficits deserve equal prominence.
+ */
+const TIER: Record<SuggestionCategory, 1 | 2 | 3> = {
+  metadata: 1,
+  schema: 1,
+  structured_data: 1,
+  sitemap_robots: 1,
+  internal_linking: 1,
+  accessibility: 1,
+  locality_page: 1,
+  performance: 2,
+  image_optimization: 2,
+  content_quality: 3,
+};
+
+const EVIDENCE_SOURCE_LABEL: Record<SuggestionEvidence["source"], string> = {
+  crawl: "CRAWL",
+  lighthouse: "LIGHTHOUSE",
+  geo: "GEO",
+};
+
+function pagePath(url?: string): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).pathname.replace(/\/+$/, "") || "/";
+  } catch {
+    return url;
+  }
+}
+
+function shortDate(ts?: number): string | null {
+  if (!ts) return null;
+  try {
+    return new Date(ts).toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+    });
+  } catch {
+    return null;
+  }
+}
+
+/** Confidence band → label + pill class. Direct observations land "certain". */
+function confidenceBand(c: number): { label: string; cls: string } {
+  if (c >= 0.95) return { label: "certain", cls: "high" };
+  if (c >= 0.8) return { label: "likely", cls: "med" };
+  return { label: "inferred", cls: "low" };
+}
+
+function ConfidencePill({ confidence }: { confidence: number }) {
+  if (typeof confidence !== "number") return null;
+  const pct = Math.round(confidence * 100);
+  const band = confidenceBand(confidence);
+  return (
+    <span
+      className={`pill ${band.cls}`}
+      title={`Confidence ${pct}% — ${band.label}. Derived from how the deficit was observed, not its impact.`}
+    >
+      {pct}% {band.label}
+    </span>
+  );
+}
+
+function EvidenceBlock({ evidence }: { evidence: SuggestionEvidence[] }) {
+  if (!evidence || evidence.length === 0) return null;
+  return (
+    <div className="sug-evidence">
+      <span className="label-sm">Evidence · {evidence.length} signal{evidence.length === 1 ? "" : "s"}</span>
+      <ul className="sug-evidence-list">
+        {evidence.map((e, i) => {
+          const page = pagePath(e.url);
+          const when = shortDate(e.detectedAt);
+          return (
+            <li key={i}>
+              <span className={`ev-src ev-${e.source}`}>
+                {EVIDENCE_SOURCE_LABEL[e.source]}
+              </span>
+              <span className="ev-body">
+                <span className="ev-detail">{e.detail}</span>
+                {(page || when) && (
+                  <span className="ev-prov">
+                    {page && <span className="ev-page">{page}</span>}
+                    {when && <span className="ev-when">· {when}</span>}
+                  </span>
+                )}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
 }
 
 const IMPACT_PILL: Record<Suggestion["expectedImpact"], string> = {
@@ -65,6 +164,14 @@ export function SuggestionList({ suggestions, onDevelop }: Props) {
   }
 
   const proposed = suggestions.filter(s => s.status === 'proposed' || s.status === 'selected');
+  // Hierarchy of findings: structural/correctness deficits (schema, canonical,
+  // OG, sitemap, accessibility, locality) carry the most weight and dominate the
+  // screen; performance is second; pure optimization is last. Within a tier we
+  // sort by priority so the strongest measured deficit leads.
+  const byPriority = (a: Suggestion, b: Suggestion) => b.priorityScore - a.priorityScore;
+  const tier1 = proposed.filter(s => TIER[s.category] === 1).sort(byPriority);
+  const tier2 = proposed.filter(s => TIER[s.category] === 2).sort(byPriority);
+  const tier3 = proposed.filter(s => (TIER[s.category] ?? 3) === 3).sort(byPriority);
   const inFlight = suggestions.filter(s => s.status === 'dispatched');
   const done = suggestions.filter(s => s.status === 'implemented' || s.status === 'validated');
   const failed = suggestions.filter(s => s.status === 'failed' || s.status === 'rejected');
@@ -88,8 +195,21 @@ export function SuggestionList({ suggestions, onDevelop }: Props) {
                 <div className="sug-title-row">
                   <span className="sug-title">{s.title}</span>
                   <span className="sug-cat">{s.category ?? 'general'}</span>
+                  <ConfidencePill confidence={s.confidence} />
                 </div>
-                <div className="sug-desc">{s.description}</div>
+                {s.issue && (
+                  <div className="sug-issue">
+                    <span className="label-sm">Issue</span>
+                    <span className="sug-issue-text">{s.issue}</span>
+                  </div>
+                )}
+                <EvidenceBlock evidence={s.evidence} />
+                {s.implementation && (
+                  <div className="sug-impl">
+                    <span className="label-sm">Implementation</span>
+                    <span className="sug-impl-text">{s.implementation}</span>
+                  </div>
+                )}
                 {s.geoContext && (
                   <div style={{ fontSize: 11, color: 'var(--accent-strong)', marginTop: 4 }}>
                     geo: {s.geoContext.locality}
@@ -128,7 +248,7 @@ export function SuggestionList({ suggestions, onDevelop }: Props) {
               <div className="sug-actions">
                 {isActionable(s) && onDevelop ? (
                   <>
-                    <button className="btn btn-primary" onClick={() => onDevelop(s)}>Develop</button>
+                    <button className="btn btn-primary" onClick={() => onDevelop(s)}>Generate PR</button>
                     <button className="btn btn-secondary">Skip</button>
                   </>
                 ) : (
@@ -144,7 +264,9 @@ export function SuggestionList({ suggestions, onDevelop }: Props) {
 
   return (
     <div>
-      {renderGroup("Proposed", proposed)}
+      {renderGroup("Structural issues", tier1)}
+      {renderGroup("Performance", tier2)}
+      {renderGroup("Optimization", tier3)}
       {renderGroup("In flight", inFlight, "accent")}
       {renderGroup("Implemented", done, "success")}
       {renderGroup("Failed / Rejected", failed)}

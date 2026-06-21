@@ -25,7 +25,7 @@ export function buildCodeEditPrompt(p: PromptInput): string {
     ? `\n=== REFINEMENT RUN ===\nA previous job already pushed work to "${p.branchName}" and likely opened a PR. Build on top of it. Do NOT redo existing work.\n`
     : "";
 
-  return `You are being run HEADLESSLY to implement ONE SEO/growth improvement for a real-estate Next.js website. Work fully autonomously — do NOT ask questions, do NOT wait for confirmation. Make decisions and proceed.
+  return `You are being run HEADLESSLY to implement ONE SEO/growth improvement for a website. The site can be in ANY industry and built with ANY framework — discover what it is from the repo; do not assume. Work fully autonomously — do NOT ask questions, do NOT wait for confirmation. Make decisions and proceed.
 
 RUN ID: ${p.runId}
 JOB ID: ${p.jobId}
@@ -35,7 +35,7 @@ ${refinementBanner}
 SUGGESTION TO IMPLEMENT:
 ${suggestionJson}
 
-GEO CONTEXT (locality/landmark/keyword data — use it to shape page content, schema, and copy):
+LOCAL CONTEXT (area/landmark/keyword data — present only for location-based businesses; use it to shape page content, schema, and copy):
 ${geoBlock}
 
 PRIOR USER INSTRUCTIONS for this job (oldest first — already acted on, included for continuity):
@@ -43,20 +43,20 @@ ${priorBlock}
 
 === INSTRUCTIONS (follow exactly) ===
 
-1. Quickly read the repo structure. Identify whether this is Next.js App Router (src/app/) or Pages Router (src/pages/). Adapt your edits.
+1. Quickly read the repo structure and identify the framework and routing convention it ACTUALLY uses (e.g. Next.js App Router src/app/, Next.js Pages Router src/pages/, Astro, SvelteKit, a static site, a plain HTML/CMS theme, etc.). Adapt every edit to whatever the repo really is — do NOT impose a Next.js structure on a non-Next.js repo.
 2. Read any CLAUDE.md or README.md at the repo root for conventions.
 3. Ensure you are on branch "${p.branchName}". If it doesn't exist locally, cut it from "${p.baseBranch}":
    git fetch origin
    git checkout ${p.baseBranch} && git pull origin ${p.baseBranch} --ff-only
    git checkout -b ${p.branchName}    (or: git checkout ${p.branchName} if it exists on origin and pull)
 4. Implement the suggestion. STAY IN SCOPE — only this one suggestion. No refactors, no unrelated cleanups, no new dependencies unless strictly required by the change.
-5. Common implementations:
-   - "metadata": update generateMetadata() or export const metadata in the relevant route file.
-   - "schema": add a JSON-LD <script type="application/ld+json"> in the appropriate component or layout.
-   - "locality_page": create a new route under src/app/locations/[slug]/page.tsx (or equivalent) using the geo context provided.
+5. Common implementations — adapt these to the repo's actual framework (the Next.js specifics below are EXAMPLES, not requirements):
+   - "metadata": update the page/route's metadata mechanism (e.g. Next.js generateMetadata()/export const metadata, an Astro frontmatter <title>/<meta>, or the template's <head>).
+   - "schema": add a JSON-LD <script type="application/ld+json"> in the appropriate component, layout, or template head. Use schema.org types appropriate to this business.
+   - "locality_page": ONLY when local context is provided — create a new local landing page using the repo's routing convention (e.g. Next.js src/app/locations/[slug]/page.tsx, or the equivalent).
    - "internal_linking": add anchor links between related pages.
-   - "image_optimization": switch <img> to next/image with proper width/height.
-   - "sitemap_robots": add src/app/sitemap.ts and src/app/robots.ts (App Router) or public/sitemap.xml + public/robots.txt.
+   - "image_optimization": use the framework's optimized image approach (e.g. next/image) or add proper width/height/lazy-loading to <img>.
+   - "sitemap_robots": add a sitemap and robots file the way this framework expects (e.g. Next.js src/app/sitemap.ts + robots.ts, or public/sitemap.xml + public/robots.txt).
 6. If a build script is present, run a quick syntax check with: npx tsc --noEmit  (best-effort; do not block on pre-existing errors).
 7. Commit only the files you changed:
    git add <files>
