@@ -16,6 +16,8 @@ interface Row {
   confidence: number | null;
   description: string;
   rationale: string;
+  why_it_matters: string | null;
+  business_impact: string | null;
   implementation: string | null;
   expected_impact: string;
   risk: string;
@@ -40,6 +42,8 @@ function toSuggestion(row: Row): Suggestion {
     confidence: row.confidence ?? 1,
     description: row.description,
     rationale: row.rationale,
+    whyItMatters: row.why_it_matters ?? undefined,
+    businessImpact: row.business_impact ?? undefined,
     implementation: row.implementation ?? "",
     expectedImpact: row.expected_impact as Suggestion["expectedImpact"],
     risk: row.risk as Suggestion["risk"],
@@ -59,11 +63,11 @@ export const suggestionsRepo: SuggestionsRepoPort = {
     const stmt = getDb().prepare(
       `INSERT OR REPLACE INTO suggestions (
         id, run_id, category, title, issue, evidence_json, confidence, description, rationale,
-        implementation, expected_impact, risk,
+        why_it_matters, business_impact, implementation, expected_impact, risk,
         priority_score, target_files_json, geo_context_json, status, dispatch_job_id, pr_number
       ) VALUES (
         @id, @runId, @category, @title, @issue, @evidence, @confidence, @description, @rationale,
-        @implementation, @expectedImpact, @risk,
+        @whyItMatters, @businessImpact, @implementation, @expectedImpact, @risk,
         @priorityScore, @targetFiles, @geoContext, @status, @dispatchJobId, @prNumber
       )`,
     );
@@ -79,6 +83,8 @@ export const suggestionsRepo: SuggestionsRepoPort = {
           confidence: typeof s.confidence === "number" ? s.confidence : 1,
           description: s.description,
           rationale: s.rationale,
+          whyItMatters: s.whyItMatters ?? null,
+          businessImpact: s.businessImpact ?? null,
           implementation: s.implementation ?? "",
           expectedImpact: s.expectedImpact,
           risk: s.risk,

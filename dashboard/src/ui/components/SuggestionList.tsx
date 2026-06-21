@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import type { Suggestion, SuggestionCategory, SuggestionEvidence } from "@growth/shared/types";
 
 interface Props {
@@ -105,6 +106,27 @@ function EvidenceBlock({ evidence }: { evidence: SuggestionEvidence[] }) {
   );
 }
 
+/**
+ * Business Insight — the layer that makes a finding feel like Syntra understood
+ * the business, not just the HTML. Added by the Enrichment agent; absent on
+ * legacy suggestions, in which case nothing renders.
+ */
+function BusinessInsight({ s }: { s: Suggestion }) {
+  if (!s.whyItMatters && !s.businessImpact) return null;
+  return (
+    <div className="sug-insight">
+      <span className="label-sm sug-insight-label">Why it matters</span>
+      {s.whyItMatters && <p className="sug-insight-why">{s.whyItMatters}</p>}
+      {s.businessImpact && (
+        <p className="sug-insight-impact">
+          <span className="sug-insight-impact-tag">Business impact</span>
+          {s.businessImpact}
+        </p>
+      )}
+    </div>
+  );
+}
+
 const IMPACT_PILL: Record<Suggestion["expectedImpact"], string> = {
   low: "low",
   medium: "med",
@@ -154,7 +176,22 @@ function priorityFillClass(score: number): string {
   return "med";
 }
 
+/** One-line teaser shown while collapsed so the list still reads at a glance. */
+function teaser(s: Suggestion): string {
+  const t = s.issue || s.whyItMatters || s.description || "";
+  return t.length > 150 ? `${t.slice(0, 149)}…` : t;
+}
+
 export function SuggestionList({ suggestions, onDevelop }: Props) {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggle = (id: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
   if (suggestions.length === 0) {
     return (
       <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--fg-muted)', fontSize: 13 }}>
@@ -176,7 +213,7 @@ export function SuggestionList({ suggestions, onDevelop }: Props) {
   const done = suggestions.filter(s => s.status === 'implemented' || s.status === 'validated');
   const failed = suggestions.filter(s => s.status === 'failed' || s.status === 'rejected');
 
-  const renderGroup = (title: string, items: Suggestion[], accent?: string, success?: boolean) => {
+  const renderGroup = (title: string, items: Suggestion[], accent?: string) => {
     if (items.length === 0) return null;
     return (
       <div className="sug-group" key={title}>
@@ -185,79 +222,116 @@ export function SuggestionList({ suggestions, onDevelop }: Props) {
           <span className="count">{items.length}</span>
           <span className="rule"></span>
         </div>
-        {items.map((s, i) => (
-          <div
-            key={s.id}
-            className={`sug-card ${s.status === 'dispatched' ? 'live' : s.status === 'failed' || s.status === 'rejected' ? 'dim' : ''}`}
-          >
-            <div className="sug-row">
-              <div>
-                <div className="sug-title-row">
-                  <span className="sug-title">{s.title}</span>
-                  <span className="sug-cat">{s.category ?? 'general'}</span>
-                  <ConfidencePill confidence={s.confidence} />
-                </div>
-                {s.issue && (
-                  <div className="sug-issue">
-                    <span className="label-sm">Issue</span>
-                    <span className="sug-issue-text">{s.issue}</span>
-                  </div>
-                )}
-                <EvidenceBlock evidence={s.evidence} />
-                {s.implementation && (
-                  <div className="sug-impl">
-                    <span className="label-sm">Implementation</span>
-                    <span className="sug-impl-text">{s.implementation}</span>
-                  </div>
-                )}
-                {s.geoContext && (
-                  <div style={{ fontSize: 11, color: 'var(--accent-strong)', marginTop: 4 }}>
-                    geo: {s.geoContext.locality}
-                  </div>
-                )}
-                <div className="sug-meta">
-                  <div className="pair">
-                    <span className="label-sm">Impact</span>
-                    <span className={`pill ${IMPACT_PILL[s.expectedImpact]}`}>{IMPACT_LABEL[s.expectedImpact]}</span>
-                  </div>
-                  <div className="sug-priority">
-                    <span className="label-sm">Priority</span>
-                    <div className="bar">
-                      <div className={`fill ${priorityFillClass(s.priorityScore)}`} style={{ width: `${Math.min(100, s.priorityScore)}%` }}></div>
+        {items.map((s) => {
+          const isOpen = expanded.has(s.id);
+          return (
+            <div
+              key={s.id}
+              className={`sug-card ${isOpen ? 'open' : ''} ${s.status === 'dispatched' ? 'live' : s.status === 'failed' || s.status === 'rejected' ? 'dim' : ''}`}
+            >
+              <div className="sug-row">
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  {/* Clickable headline — toggles the detail view. */}
+                  <button
+                    type="button"
+                    className="sug-head-btn"
+                    aria-expanded={isOpen}
+                    onClick={() => toggle(s.id)}
+                  >
+                    <span className={`sug-chevron ${isOpen ? 'open' : ''}`} aria-hidden>▸</span>
+                    <span className="sug-head-main">
+                      <span className="sug-title-row">
+                        <span className="sug-title">{s.title}</span>
+                        <span className="sug-cat">{s.category ?? 'general'}</span>
+                        <ConfidencePill confidence={s.confidence} />
+                      </span>
+                      {!isOpen && teaser(s) && (
+                        <span className="sug-teaser">{teaser(s)}</span>
+                      )}
+                    </span>
+                  </button>
+
+                  {/* Detail view — revealed on click. */}
+                  {isOpen && (
+                    <div className="sug-detail">
+                      {s.issue && (
+                        <div className="sug-issue">
+                          <span className="label-sm">Issue</span>
+                          <span className="sug-issue-text">{s.issue}</span>
+                        </div>
+                      )}
+                      <BusinessInsight s={s} />
+                      <EvidenceBlock evidence={s.evidence} />
+                      {s.implementation && (
+                        <div className="sug-impl">
+                          <span className="label-sm">What this changes</span>
+                          <span className="sug-impl-text">{s.implementation}</span>
+                        </div>
+                      )}
+                      {s.targetFiles && s.targetFiles.length > 0 && (
+                        <div className="sug-targets">
+                          <span className="label-sm">Target files</span>
+                          <span className="sug-targets-list">
+                            {s.targetFiles.map((f) => (
+                              <code key={f} className="sug-target">{f}</code>
+                            ))}
+                          </span>
+                        </div>
+                      )}
+                      {s.geoContext && (
+                        <div style={{ fontSize: 11, color: 'var(--accent-strong)', marginTop: 4 }}>
+                          geo: {s.geoContext.locality}
+                        </div>
+                      )}
                     </div>
-                    <span className="num">{Math.round(s.priorityScore)}</span>
+                  )}
+
+                  <div className="sug-meta">
+                    <div className="pair">
+                      <span className="label-sm">Impact</span>
+                      <span className={`pill ${IMPACT_PILL[s.expectedImpact]}`}>{IMPACT_LABEL[s.expectedImpact]}</span>
+                    </div>
+                    <div className="sug-priority">
+                      <span className="label-sm">Priority</span>
+                      <div className="bar">
+                        <div className={`fill ${priorityFillClass(s.priorityScore)}`} style={{ width: `${Math.min(100, s.priorityScore)}%` }}></div>
+                      </div>
+                      <span className="num">{Math.round(s.priorityScore)}</span>
+                    </div>
                   </div>
+                  {s.status === 'dispatched' && (
+                    <div className="mono" style={{ fontSize: 11.5, color: 'var(--fg-muted)', marginTop: 8 }}>
+                      {s.dispatchJobId ? `job ${s.dispatchJobId.slice(0, 8)} · dispatching…` : 'Claude Code is implementing — this can take a few minutes.'}
+                    </div>
+                  )}
+                  {s.status === 'implemented' && s.prNumber && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8, fontSize: 11.5, color: 'var(--fg-muted)' }}>
+                      <span>PR #{s.prNumber} opened</span>
+                      <span style={{ color: 'var(--success)' }}>✓ implemented</span>
+                    </div>
+                  )}
+                  {s.status === 'failed' && (
+                    <div style={{ fontSize: 11, color: 'var(--danger)', marginTop: 6 }}>
+                      Last dispatch failed — try again with a clarifying prompt.
+                    </div>
+                  )}
                 </div>
-                {s.status === 'dispatched' && (
-                  <div className="mono" style={{ fontSize: 11.5, color: 'var(--fg-muted)', marginTop: 8 }}>
-                    {s.dispatchJobId ? `job ${s.dispatchJobId.slice(0, 8)} · dispatching…` : 'Claude Code is implementing — this can take a few minutes.'}
-                  </div>
-                )}
-                {s.status === 'implemented' && s.prNumber && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8, fontSize: 11.5, color: 'var(--fg-muted)' }}>
-                    <span>PR #{s.prNumber} opened</span>
-                    <span style={{ color: 'var(--success)' }}>✓ implemented</span>
-                  </div>
-                )}
-                {s.status === 'failed' && (
-                  <div style={{ fontSize: 11, color: 'var(--danger)', marginTop: 6 }}>
-                    Last dispatch failed — try again with a clarifying prompt.
-                  </div>
-                )}
-              </div>
-              <div className="sug-actions">
-                {isActionable(s) && onDevelop ? (
-                  <>
-                    <button className="btn btn-primary" onClick={() => onDevelop(s)}>Generate PR</button>
-                    <button className="btn btn-secondary">Skip</button>
-                  </>
-                ) : (
-                  <SugStatusPill status={s.status} />
-                )}
+                <div className="sug-actions">
+                  {isActionable(s) && onDevelop ? (
+                    <>
+                      <button className="btn btn-primary" onClick={() => onDevelop(s)}>Generate PR</button>
+                      <button className="btn btn-secondary" onClick={() => toggle(s.id)}>
+                        {isOpen ? 'Less' : 'Details'}
+                      </button>
+                    </>
+                  ) : (
+                    <SugStatusPill status={s.status} />
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   };

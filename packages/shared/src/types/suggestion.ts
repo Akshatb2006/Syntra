@@ -78,6 +78,17 @@ export interface Suggestion {
   description: string;
   /** Why it matters / why this impact level. */
   rationale: string;
+  /**
+   * Business-aware enrichment, added by the Enrichment agent AFTER the deficit is
+   * found. These EXPLAIN an existing finding for THIS business — they never
+   * create or alter evidence. `whyItMatters` ties the gap to the site's
+   * audience/market/page intent; `businessImpact` names the concrete outcome
+   * affected (organic traffic, qualified leads, AI-answer citation, share CTR,
+   * topical authority). Optional: empty when enrichment is unavailable, so the
+   * card degrades to Issue → Evidence → Implementation.
+   */
+  whyItMatters?: string;
+  businessImpact?: string;
   /** Concrete fix the Code Modification agent will implement. */
   implementation: string;
   expectedImpact: SuggestionImpact;

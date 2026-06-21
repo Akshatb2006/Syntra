@@ -34,5 +34,9 @@ export function getDb(): Db {
   safeAlter("ALTER TABLE suggestions ADD COLUMN implementation TEXT NOT NULL DEFAULT ''");
   // Finding confidence/provenance (0..1). Default 1 keeps legacy rows neutral.
   safeAlter("ALTER TABLE suggestions ADD COLUMN confidence REAL NOT NULL DEFAULT 1");
+  // Business-aware enrichment (why it matters / business outcome). Nullable —
+  // legacy suggestions simply render without the Business Insight block.
+  safeAlter("ALTER TABLE suggestions ADD COLUMN why_it_matters TEXT");
+  safeAlter("ALTER TABLE suggestions ADD COLUMN business_impact TEXT");
   return db;
 }

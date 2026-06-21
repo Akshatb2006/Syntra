@@ -65,6 +65,8 @@ CREATE TABLE IF NOT EXISTS suggestions (
   confidence REAL NOT NULL DEFAULT 1,
   description TEXT NOT NULL,
   rationale TEXT NOT NULL,
+  why_it_matters TEXT,
+  business_impact TEXT,
   implementation TEXT NOT NULL DEFAULT '',
   expected_impact TEXT NOT NULL,
   risk TEXT NOT NULL,

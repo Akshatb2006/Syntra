@@ -16,6 +16,11 @@ export const AGENTS: Record<AgentName, { displayName: string; model: string; des
     model: "claude-haiku-4-5",
     description: "Discovers locality keywords, neighborhood landmarks, and geo-intent SEO opportunities.",
   },
+  enrichment: {
+    displayName: "Recommendation Enrichment",
+    model: "claude-opus-4-7",
+    description: "Explains each detected deficit for THIS business — why it matters and the outcome it affects. Cannot invent findings.",
+  },
   code_mod: {
     displayName: "Code Modification",
     model: "claude-opus-4-7",
@@ -32,6 +37,7 @@ export const AGENT_ORDER: AgentName[] = [
   "orchestrator",
   "crawl_seo",
   "geo_intel",
+  "enrichment",
   "code_mod",
   "validation",
 ];

@@ -9,6 +9,7 @@ import type {
 import { newId } from "@/lib/id";
 import type { CrawlSeoOutput } from "./crawl-seo.agent";
 import type { GeoIntelOutput } from "./geo-intel.agent";
+import { EnrichmentAgent } from "./enrichment.agent";
 
 export interface OrchestratorInput {
   siteUrl: string;
@@ -82,6 +83,31 @@ export class OrchestratorAgent extends BaseAgent<OrchestratorInput, Orchestrator
       }
 
       const suggestions = this.materialize(ctx.runId, findings, ranked, maxSelected);
+
+      // Enrich each proven deficit with a business-aware "why it matters" +
+      // "business impact" BEFORE persisting. Additive and best-effort: the
+      // Enrichment agent can only explain these findings, never add to them, and
+      // a failure leaves the cards un-enriched rather than failing the run.
+      try {
+        const { byId } = await new EnrichmentAgent().run(
+          { ...ctx, parentSpan: span },
+          {
+            siteUrl: input.siteUrl,
+            profile: input.profile,
+            pageTypes: input.crawl.pageTypes,
+            suggestions,
+          },
+        );
+        for (const s of suggestions) {
+          const e = byId[s.id];
+          if (!e) continue;
+          s.whyItMatters = e.whyItMatters || undefined;
+          s.businessImpact = e.businessImpact || undefined;
+        }
+      } catch {
+        // leave suggestions un-enriched
+      }
+
       const selected = suggestions.filter((s) => s.status === "selected");
 
       ctx.store.suggestions.insertMany(suggestions);

@@ -775,6 +775,85 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
   font-weight: 500;
   font-size: 13px;
 }
+/* Click-to-expand headline. Collapsed = title + teaser; click reveals detail. */
+.sug-head-btn {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+.sug-chevron {
+  flex: 0 0 auto;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--fg-muted);
+  transition: transform 0.14s ease;
+}
+.sug-chevron.open { transform: rotate(90deg); color: var(--accent-strong); }
+.sug-head-main { min-width: 0; flex: 1; }
+.sug-head-btn .sug-title-row { margin-bottom: 4px; }
+.sug-head-btn:hover .sug-title { color: var(--accent-strong); }
+.sug-teaser {
+  display: block;
+  font-size: 13px;
+  color: var(--fg-muted);
+  line-height: 1.5;
+  margin-top: 2px;
+}
+.sug-detail {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+  animation: sugReveal 0.16s ease;
+}
+@keyframes sugReveal { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; transform: none; } }
+.sug-card.open { border-color: var(--border-2); }
+
+/* Business Insight — the "why it matters" layer. Accent-tinted to stand out. */
+.sug-insight {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+}
+.sug-insight-label { display: block; color: var(--accent-strong) !important; font-weight: 600; }
+.sug-insight-why { font-size: 13.5px; color: var(--fg); line-height: 1.6; margin: 4px 0 0; }
+.sug-insight-impact {
+  font-size: 13px;
+  color: var(--fg-muted);
+  line-height: 1.55;
+  margin: 8px 0 0;
+}
+.sug-insight-impact-tag {
+  display: inline-block;
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--accent-strong);
+  margin-right: 7px;
+}
+
+/* Target files touched by the fix. */
+.sug-targets { margin-top: 10px; }
+.sug-targets-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.sug-target {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--fg-muted);
+}
+
 .sug-actions { display: flex; gap: 8px; flex-shrink: 0; align-items: flex-start; }
 .btn {
   padding: 12px 22px;
