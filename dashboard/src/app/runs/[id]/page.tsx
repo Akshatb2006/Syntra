@@ -190,6 +190,14 @@ export default function RunDetailPage({
               <span className="k">Validated</span><span className="v mono success">{suggestions.filter(s => s.status === 'implemented').length}</span>
             </div>
           </div>
+
+          <div className="group">
+            <div className="label" title="What Syntra believed when this run executed. Findings reflect these versions, not today's rules.">Version</div>
+            <div className="kv">
+              <span className="k">Engine</span><span className="v mono">{run.engineVersion}</span>
+              <span className="k">Detector</span><span className="v mono">{run.detectorVersion}</span>
+            </div>
+          </div>
           
           {run.error && (
             <div className="group">

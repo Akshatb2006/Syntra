@@ -107,6 +107,8 @@ async function main() {
       trigger: { kind: "manual", userId: "probe" },
     },
     status: "queued",
+    engineVersion: "test",
+    detectorVersion: "test",
     credentialsRef: "",
     workspaceId: "ws-probe",
     prUrl: null,

@@ -3,6 +3,8 @@ CREATE TABLE IF NOT EXISTS runs (
   id TEXT PRIMARY KEY,
   input_json TEXT NOT NULL,
   status TEXT NOT NULL,
+  engine_version TEXT NOT NULL DEFAULT 'v0',
+  detector_version TEXT NOT NULL DEFAULT 'v0',
   credentials_ref TEXT NOT NULL DEFAULT '',
   workspace_id TEXT NOT NULL,
   pr_url TEXT,

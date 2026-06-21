@@ -10,7 +10,15 @@ import { getSearch } from "@/infra/search/tavily.client";
 import { CrawlSeoAgent } from "@/agents/crawl-seo.agent";
 import { GeoIntelAgent, type GeoIntelOutput } from "@/agents/geo-intel.agent";
 import { OrchestratorAgent } from "@/agents/orchestrator.agent";
-import { detectDeficits } from "@/orchestration/deficit-detector";
+import { detectDeficits, DETECTOR_VERSION } from "@/orchestration/deficit-detector";
+
+/**
+ * Version of the audit pipeline (crawl → evidence → findings → ranking) as a
+ * whole. Bump on structural changes to what Syntra observes or how it runs the
+ * audit (e.g. crawl-depth/hydration/agent-flow changes), distinct from
+ * DETECTOR_VERSION which tracks only the deficit ruleset.
+ */
+export const ENGINE_VERSION = "v0.8";
 
 function transition(runId: string, status: RunStatus): void {
   sqliteStore.runs.patchStatus(runId, status);
@@ -72,6 +80,8 @@ export async function createRun(
     id,
     input,
     status: "queued",
+    engineVersion: ENGINE_VERSION,
+    detectorVersion: DETECTOR_VERSION,
     // "" means "not connected yet" — an audit-only run. Credentials are
     // attached later, at implement time.
     credentialsRef: credentialsRef ?? "",

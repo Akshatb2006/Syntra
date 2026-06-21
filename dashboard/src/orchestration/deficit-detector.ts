@@ -18,6 +18,15 @@ import type { GeoIntelOutput } from "@/agents/geo-intel.agent";
  * or alter their evidence. This is what makes Syntra deficit-centric ("here is
  * the gap, here is the proof") instead of recommendation-centric.
  */
+/**
+ * Version of the deficit detector ruleset. Bump this whenever a detector is
+ * added/removed, a threshold (e.g. MIN_KIB_SAVINGS) moves, or confidence policy
+ * changes — i.e. whenever the SAME site could now yield different findings.
+ * Stamped onto every Run so historical audits stay reproducible and the set of
+ * findings a run shows is traceable to the rules that were live when it ran.
+ */
+export const DETECTOR_VERSION = "v1";
+
 export interface DetectorInput {
   crawl: CrawlSeoOutput;
   geo: GeoIntelOutput;

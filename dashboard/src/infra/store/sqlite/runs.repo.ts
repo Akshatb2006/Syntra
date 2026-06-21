@@ -6,6 +6,8 @@ interface Row {
   id: string;
   input_json: string;
   status: string;
+  engine_version: string;
+  detector_version: string;
   credentials_ref: string;
   workspace_id: string;
   pr_url: string | null;
@@ -23,6 +25,8 @@ function toRun(row: Row): Run {
     id: row.id,
     input: JSON.parse(row.input_json) as Run["input"],
     status: row.status as RunStatus,
+    engineVersion: row.engine_version ?? "v0",
+    detectorVersion: row.detector_version ?? "v0",
     credentialsRef: row.credentials_ref ?? "",
     workspaceId: row.workspace_id,
     prUrl: row.pr_url,
@@ -46,15 +50,17 @@ export const runsRepo: RunsRepoPort = {
   insert(run) {
     getDb()
       .prepare(
-        `INSERT INTO runs (id, input_json, status, credentials_ref, workspace_id, pr_url, preview_url,
+        `INSERT INTO runs (id, input_json, status, engine_version, detector_version, credentials_ref, workspace_id, pr_url, preview_url,
           baseline_lh_json, after_lh_json, error_json, created_at, updated_at, completed_at)
-        VALUES (@id, @input, @status, @credentialsRef, @workspaceId, @prUrl, @previewUrl,
+        VALUES (@id, @input, @status, @engineVersion, @detectorVersion, @credentialsRef, @workspaceId, @prUrl, @previewUrl,
           @baseline, @after, @error, @createdAt, @updatedAt, @completedAt)`,
       )
       .run({
         id: run.id,
         input: JSON.stringify(run.input),
         status: run.status,
+        engineVersion: run.engineVersion,
+        detectorVersion: run.detectorVersion,
         credentialsRef: run.credentialsRef,
         workspaceId: run.workspaceId,
         prUrl: run.prUrl,

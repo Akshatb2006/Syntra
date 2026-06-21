@@ -24,6 +24,10 @@ export function getDb(): Db {
     }
   };
   safeAlter("ALTER TABLE runs ADD COLUMN credentials_ref TEXT NOT NULL DEFAULT ''");
+  // Engine/detector version stamps. Default 'v0' marks every pre-versioning run
+  // as legacy — it keeps representing what Syntra believed when it ran.
+  safeAlter("ALTER TABLE runs ADD COLUMN engine_version TEXT NOT NULL DEFAULT 'v0'");
+  safeAlter("ALTER TABLE runs ADD COLUMN detector_version TEXT NOT NULL DEFAULT 'v0'");
   // Deficit-centric suggestion fields (issue / measured evidence / implementation).
   safeAlter("ALTER TABLE suggestions ADD COLUMN issue TEXT NOT NULL DEFAULT ''");
   safeAlter("ALTER TABLE suggestions ADD COLUMN evidence_json TEXT NOT NULL DEFAULT '[]'");

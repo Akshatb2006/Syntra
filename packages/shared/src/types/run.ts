@@ -49,6 +49,16 @@ export interface Run {
   input: RunInput;
   status: RunStatus;
   /**
+   * Version of the audit pipeline that produced this run, and of the deficit
+   * detector ruleset it applied. Stamped at creation and never mutated, so a
+   * historical run keeps representing what Syntra believed AT THAT MOMENT — not
+   * what it believes today. When thresholds/detectors change, old runs keep
+   * their old findings; comparing these versions answers "why did this
+   * recommendation disappear?". Runs created before versioning read as "v0".
+   */
+  engineVersion: string;
+  detectorVersion: string;
+  /**
    * Opaque pointer to encrypted credentials in the secrets table. Persisted
    * with the run so user-triggered dispatches (after planning) can look up
    * the GitHub token without re-asking the user.
