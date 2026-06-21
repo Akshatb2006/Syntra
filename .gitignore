@@ -35,3 +35,6 @@ dispatch-logs/
 
 # typescript
 *.tsbuildinfo
+
+# stray local docs
+*.pdf
