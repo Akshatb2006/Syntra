@@ -6,6 +6,7 @@ export type AgentName =
   | "demand_intel"
   | "competitor_intel"
   | "enrichment"
+  | "blueprint"
   | "code_mod"
   | "validation";
 

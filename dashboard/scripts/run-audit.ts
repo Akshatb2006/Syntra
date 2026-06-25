@@ -85,6 +85,11 @@ async function main() {
         `  demand: ${s.demand.band} ${s.demand.score}/100 [${s.demand.intent}]${s.demand.competitorsOwning.length ? ` — competitors own: ${s.demand.competitorsOwning.join(", ")}` : ""}`,
       );
     if (s.whyItMatters) console.log(`  why: ${s.whyItMatters}`);
+    if (s.blueprint) {
+      console.log(`  blueprint: ${s.blueprint.title}`);
+      console.log(`    sections: ${s.blueprint.sections.join(" · ")}`);
+      console.log(`    keywords: ${s.blueprint.keywords.join(", ")}`);
+    }
   }
   console.log();
   process.exit(0);

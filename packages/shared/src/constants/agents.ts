@@ -36,6 +36,11 @@ export const AGENTS: Record<AgentName, { displayName: string; model: string; des
     model: "claude-opus-4-7",
     description: "Explains each detected deficit for THIS business — why it matters and the outcome it affects. Cannot invent findings.",
   },
+  blueprint: {
+    displayName: "Page Blueprint",
+    model: "claude-opus-4-7",
+    description: "Turns a buildable content gap into an executable page outline — title, section structure, and target keyword cluster — grounded by the gap's demand and competitor signals.",
+  },
   code_mod: {
     displayName: "Code Modification",
     model: "claude-opus-4-7",
@@ -56,6 +61,7 @@ export const AGENT_ORDER: AgentName[] = [
   "demand_intel",
   "competitor_intel",
   "enrichment",
+  "blueprint",
   "code_mod",
   "validation",
 ];

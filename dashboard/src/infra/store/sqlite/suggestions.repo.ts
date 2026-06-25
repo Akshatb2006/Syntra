@@ -26,6 +26,7 @@ interface Row {
   geo_context_json: string | null;
   demand_json: string | null;
   opportunity_json: string | null;
+  blueprint_json: string | null;
   status: string;
   dispatch_job_id: string | null;
   pr_number: number | null;
@@ -60,6 +61,9 @@ function toSuggestion(row: Row): Suggestion {
     opportunity: row.opportunity_json
       ? (JSON.parse(row.opportunity_json) as Suggestion["opportunity"])
       : undefined,
+    blueprint: row.blueprint_json
+      ? (JSON.parse(row.blueprint_json) as Suggestion["blueprint"])
+      : undefined,
     status: row.status as Suggestion["status"],
     dispatchJobId: row.dispatch_job_id,
     prNumber: row.pr_number,
@@ -72,11 +76,11 @@ export const suggestionsRepo: SuggestionsRepoPort = {
       `INSERT OR REPLACE INTO suggestions (
         id, run_id, category, title, issue, evidence_json, confidence, description, rationale,
         why_it_matters, business_impact, implementation, expected_impact, risk,
-        priority_score, target_files_json, geo_context_json, demand_json, opportunity_json, status, dispatch_job_id, pr_number
+        priority_score, target_files_json, geo_context_json, demand_json, opportunity_json, blueprint_json, status, dispatch_job_id, pr_number
       ) VALUES (
         @id, @runId, @category, @title, @issue, @evidence, @confidence, @description, @rationale,
         @whyItMatters, @businessImpact, @implementation, @expectedImpact, @risk,
-        @priorityScore, @targetFiles, @geoContext, @demand, @opportunity, @status, @dispatchJobId, @prNumber
+        @priorityScore, @targetFiles, @geoContext, @demand, @opportunity, @blueprint, @status, @dispatchJobId, @prNumber
       )`,
     );
     const tx = getDb().transaction((items: Suggestion[]) => {
@@ -101,6 +105,7 @@ export const suggestionsRepo: SuggestionsRepoPort = {
           geoContext: s.geoContext ? JSON.stringify(s.geoContext) : null,
           demand: s.demand ? JSON.stringify(s.demand) : null,
           opportunity: s.opportunity ? JSON.stringify(s.opportunity) : null,
+          blueprint: s.blueprint ? JSON.stringify(s.blueprint) : null,
           status: s.status,
           dispatchJobId: s.dispatchJobId,
           prNumber: s.prNumber,

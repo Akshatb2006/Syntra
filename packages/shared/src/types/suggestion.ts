@@ -87,6 +87,27 @@ export interface Finding {
 }
 
 /**
+ * A buildable page blueprint for a content-gap suggestion — the difference
+ * between "Create a Bayut page" and a page that's halfway written. Produced by
+ * the Blueprint agent for buildable gaps only (content_gap / locality_page),
+ * grounded by the entity's demand + competitor signals. It never invents the gap
+ * — it turns an already-proven, already-prioritized gap into an outline a writer
+ * (or the Code Modification agent) can execute.
+ */
+export interface SuggestionBlueprint {
+  /** Proposed page title — SEO + buyer-facing. */
+  title: string;
+  /** One-line positioning/angle for the page. */
+  angle?: string;
+  /** Section outline (H2-level headings), in order. */
+  sections: string[];
+  /** Target keyword cluster the page should rank for. */
+  keywords: string[];
+  /** Draft meta description (<=160 chars). */
+  metaDescription?: string;
+}
+
+/**
  * Decomposed opportunity score — the "prioritization system" view. Instead of a
  * single opaque priority number, every suggestion exposes WHY it ranks where it
  * does: business value, validated demand, the competitive gap, what it costs to
@@ -135,6 +156,12 @@ export interface Suggestion {
    */
   whyItMatters?: string;
   businessImpact?: string;
+  /**
+   * Buildable page blueprint (title / sections / keywords) for content-gap
+   * suggestions — makes the recommendation executable. Absent for non-gap or
+   * un-blueprinted suggestions.
+   */
+  blueprint?: SuggestionBlueprint;
   /** Concrete fix the Code Modification agent will implement. */
   implementation: string;
   expectedImpact: SuggestionImpact;

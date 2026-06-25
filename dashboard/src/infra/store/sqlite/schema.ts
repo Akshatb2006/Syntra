@@ -75,6 +75,7 @@ CREATE TABLE IF NOT EXISTS suggestions (
   geo_context_json TEXT,
   demand_json TEXT,
   opportunity_json TEXT,
+  blueprint_json TEXT,
   status TEXT NOT NULL,
   dispatch_job_id TEXT,
   pr_number INTEGER,

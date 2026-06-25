@@ -44,5 +44,8 @@ export function getDb(): Db {
   // Decomposed opportunity score (impact/demand/competitive gap/effort/confidence
   // → priority). Nullable — pre-scoring-v2 rows render with priorityScore only.
   safeAlter("ALTER TABLE suggestions ADD COLUMN opportunity_json TEXT");
+  // Buildable page blueprint (title/sections/keywords) for content-gap rows.
+  // Nullable — non-gap or un-blueprinted rows render without it.
+  safeAlter("ALTER TABLE suggestions ADD COLUMN blueprint_json TEXT");
   return db;
 }

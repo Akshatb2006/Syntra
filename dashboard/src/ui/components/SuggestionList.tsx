@@ -233,6 +233,47 @@ function EffortPill({ effort }: { effort: number }) {
   );
 }
 
+/**
+ * Page Blueprint — the executable layer. Turns "create an X page" into a concrete
+ * outline (title / sections / keywords) a writer or the code agent can build from.
+ * Only present on buildable content-gap suggestions.
+ */
+function PageBlueprint({ bp }: { bp: NonNullable<Suggestion["blueprint"]> }) {
+  return (
+    <div className="sug-blueprint">
+      <span className="label-sm sug-blueprint-label">Page blueprint</span>
+      <p className="sug-blueprint-title">{bp.title}</p>
+      {bp.angle && <p className="sug-blueprint-angle">{bp.angle}</p>}
+      {bp.sections.length > 0 && (
+        <div className="sug-blueprint-block">
+          <span className="label-sm">Sections</span>
+          <ol className="sug-blueprint-sections">
+            {bp.sections.map((s, i) => (
+              <li key={i}>{s}</li>
+            ))}
+          </ol>
+        </div>
+      )}
+      {bp.keywords.length > 0 && (
+        <div className="sug-blueprint-block">
+          <span className="label-sm">Target keywords</span>
+          <span className="sug-blueprint-kw">
+            {bp.keywords.map((k) => (
+              <code key={k} className="kw">{k}</code>
+            ))}
+          </span>
+        </div>
+      )}
+      {bp.metaDescription && (
+        <div className="sug-blueprint-block">
+          <span className="label-sm">Meta description</span>
+          <span className="sug-blueprint-meta">{bp.metaDescription}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const IMPACT_PILL: Record<Suggestion["expectedImpact"], string> = {
   low: "low",
   medium: "med",
@@ -392,6 +433,7 @@ export function SuggestionList({ suggestions, onDevelop }: Props) {
                           <span className="sug-impl-text">{s.implementation}</span>
                         </div>
                       )}
+                      {s.blueprint && <PageBlueprint bp={s.blueprint} />}
                       {s.targetFiles && s.targetFiles.length > 0 && (
                         <div className="sug-targets">
                           <span className="label-sm">Target files</span>

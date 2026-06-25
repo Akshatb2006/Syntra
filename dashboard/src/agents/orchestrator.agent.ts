@@ -6,6 +6,7 @@ import { newId } from "@/lib/id";
 import type { CrawlSeoOutput } from "./crawl-seo.agent";
 import type { GeoIntelOutput } from "./geo-intel.agent";
 import { EnrichmentAgent } from "./enrichment.agent";
+import { BlueprintAgent } from "./blueprint.agent";
 import {
   CATEGORY_FAMILY,
   FAMILIES,
@@ -218,6 +219,23 @@ export class OrchestratorAgent extends BaseAgent<OrchestratorInput, Orchestrator
         }
       } catch {
         // leave suggestions un-enriched
+      }
+
+      // Blueprint the buildable gaps (content_gap / locality_page) into executable
+      // page outlines (title / sections / keywords). Additive + best-effort like
+      // enrichment: the agent only blueprints gaps it's handed, and a failure
+      // leaves them without an outline rather than failing the run.
+      try {
+        const { byId } = await new BlueprintAgent().run(
+          { ...ctx, parentSpan: span },
+          { siteUrl: input.siteUrl, profile: input.profile, suggestions: report },
+        );
+        for (const s of report) {
+          const bp = byId[s.id];
+          if (bp) s.blueprint = bp;
+        }
+      } catch {
+        // leave gaps un-blueprinted
       }
 
       const selected = report.filter((s) => s.status === "selected");
