@@ -83,7 +83,7 @@ export function detectDeficits(input: DetectorInput, detectedAt = Date.now()): F
     ...detectAlt(pages, framework),
     ...detectSchema(pages, profile, framework),
     ...detectSitemapRobots(crawl),
-    ...detectContentGaps(crawl),
+    ...detectContentGaps(crawl, profile),
     ...detectLighthouse(crawl.baseline.url, crawl.baseline.diagnostics),
     ...detectLocalityPages(crawl, geo, profile),
   ];
@@ -478,12 +478,23 @@ function detectSitemapRobots(crawl: CrawlSeoOutput): DraftFinding[] {
  * counts + the pages the entity appears on); the "should be a page" judgement is
  * what keeps confidence below direct DOM facts.
  */
-function detectContentGaps(crawl: CrawlSeoOutput): DraftFinding[] {
+function detectContentGaps(crawl: CrawlSeoOutput, profile: BusinessProfile): DraftFinding[] {
   const gaps = crawl.understanding?.contentGaps ?? [];
   const fw = crawl.framework;
   const out: DraftFinding[] = [];
   for (const g of gaps) {
     if (out.length >= MAX_PER_DETECTOR) break;
+
+    // BUSINESS-MODEL RELEVANCE GATE. Frequency + coverage is not enough — the
+    // entity must also fit the business model. A `location` entity on a business
+    // that does NOT serve specific places is incidental geography (the city the
+    // company is based in, or a place a user named in a question), not a page
+    // worth building. Location pages for genuinely location-based businesses are
+    // produced by the geo/locality detector instead, so dropping them here never
+    // costs a real local-SEO opportunity — it only removes "Create Amsterdam
+    // page" noise on SaaS/blog/global sites.
+    if (g.kind === "location" && !profile.locationBased) continue;
+
     const spread = `${g.mentions}× across ${g.pageCount} crawled page${g.pageCount === 1 ? "" : "s"}`;
 
     let issue: string;

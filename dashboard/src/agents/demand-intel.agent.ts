@@ -110,6 +110,8 @@ export class DemandIntelAgent extends BaseAgent<DemandIntelInput, DemandIntelOut
 
       const system = `You are the Demand Validation Agent for an autonomous growth-engineering platform. The target is a ${input.industry} business. You are given ENTITIES that the site mentions repeatedly but has no dedicated page for. Your job is to judge, for each, whether building a page is worth it — i.e. does the entity attract real, commercial search demand, or is it just mentioned for completeness (a law, a regulator, a generic term)?
 
+SEARCH BUDGET: use AT MOST one web_search per entity. Do NOT search the same entity twice "to be sure" — one observation is enough. As soon as you have searched each entity once, STOP searching and output the JSON. Your FINAL message must be the JSON object, nothing else.
+
 For EACH entity:
 1. Call web_search ONCE for the entity (e.g. "<entity>" or "<entity> ${input.industry}") to observe real demand. Note which competitor domains rank and whether any have a dedicated page/section for it.
 2. Judge its intent:
@@ -117,7 +119,7 @@ For EACH entity:
    - "navigational" → searched to reach a specific known destination.
    - "informational"→ researched but not transacted.
    - "regulatory"   → a law, government body, or compliance term mentioned for completeness, with no acquisition demand (e.g. a real-estate commission, E-Verify). LOW value.
-3. Assign a demand score 0..100 reflecting how worth-building a dedicated page is: commercial entities with visible competitor pages score high (80-95); regulatory/compliance terms score low (10-30); unclear cases sit in the middle.
+3. Assign a demand score 0..100 reflecting how worth-building a dedicated page is FOR THIS ${input.industry} BUSINESS. Two things must BOTH be true to score high: (a) the entity attracts real commercial search demand, AND (b) a page about it would serve this business's offering. Score LOW (10-30) when either fails — including an entity that has search demand in the abstract but is NOT aligned with this business (a product or brand a user merely named in a question, the city the company is based in, a place mentioned in passing). High scores (80-95) are for entities this specific business would commercially benefit from owning — integrations, platforms, services it provides or partners with. When the entity is incidental to the business, mark intent "informational" or "navigational" and score it low even if the entity is famous.
 
 CRITICAL HONESTY RULES:
 - The "evidence" array must reflect ONLY what web_search actually returned (competitor domains seen, dedicated pages observed). Do NOT invent search volumes — we have no volume data. If a search returned nothing useful, leave evidence empty and set observed=false.
@@ -157,7 +159,10 @@ Research each (one web_search each) and produce the JSON. Be ruthless: regulator
         system,
         userPrompt,
         tools,
-        maxRounds: Math.min(8, entities.length + 2),
+        // Headroom over the 1-search-per-entity budget so the model always gets a
+        // round to emit JSON after its last search (otherwise the loop can return
+        // mid-search narration instead of the result).
+        maxRounds: Math.min(12, entities.length + 4),
         maxTokens: 4096,
       });
 
@@ -198,11 +203,18 @@ Research each (one web_search each) and produce the JSON. Be ruthless: regulator
     } catch {
       return {};
     }
+    // Match the model's echoed entity name back to what we asked. Exact-lowercase
+    // first, then a punctuation/space-insensitive fallback so "B. Amsterdam" still
+    // matches "B Amsterdam"/"b. amsterdam" — without the fallback an oddly-named
+    // entity gets silently dropped and its content gap defaults back to "create a
+    // page", re-introducing the very noise demand validation is meant to gate.
     const askedByLower = new Map(asked.map((e) => [e.name.toLowerCase(), e.name]));
+    const askedByNorm = new Map(asked.map((e) => [normName(e.name), e.name]));
     const out: Record<string, DemandSignal> = {};
     for (const raw of obj.entities ?? []) {
       const rawName = String(raw.entity ?? "").trim();
-      const canonical = askedByLower.get(rawName.toLowerCase());
+      const canonical =
+        askedByLower.get(rawName.toLowerCase()) ?? askedByNorm.get(normName(rawName));
       if (!canonical) continue; // only keep entities we asked about
 
       const score = clampScore(raw.score);
@@ -238,6 +250,11 @@ Research each (one web_search each) and produce the JSON. Be ruthless: regulator
     }
     return out;
   }
+}
+
+/** Normalize a name for fuzzy matching: lowercase, punctuation → space, collapse. */
+function normName(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
 function clampScore(v: unknown): number {

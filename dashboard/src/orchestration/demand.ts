@@ -1,4 +1,4 @@
-import type { Finding, SuggestionEvidence } from "@growth/shared/types";
+import type { DemandSignal, Finding, SuggestionEvidence } from "@growth/shared/types";
 import type { DemandIntelOutput } from "@/agents/demand-intel.agent";
 
 /**
@@ -60,15 +60,57 @@ export function applyDemand(findings: Finding[], demand: DemandIntelOutput): Fin
       });
     }
 
-    return {
+    // SEARCH-INTENT GATE. Frequency + coverage said "this could be a page";
+    // demand validation now says whether it SHOULD be. An entity with no
+    // commercial search intent — no competitor owns a page, low worth-building
+    // score, informational/regulatory/navigational intent — is mentioned, not
+    // searched. Building a page for it won't earn qualified traffic, so we do NOT
+    // recommend creating one. We keep the finding (the references are real and
+    // worth tidying) but REFRAME it from "create a dedicated page" to "consolidate
+    // references" and cap its priority, so it reads as cleanup, not a growth play.
+    const buildable =
+      signal.intent === "commercial" ||
+      signal.competitorsOwning.length > 0 ||
+      signal.score >= 45;
+
+    const withDemand: Finding = {
       ...f,
       baseScore,
       demand: signal,
       evidence: [...f.evidence, ...demandEvidence],
     };
+    return buildable ? withDemand : reframeAsConsolidate(withDemand, signal);
   });
 
   // Demand changed scores — restore the strongest-first invariant the detector
   // guarantees so the orchestrator still sees the best gaps first.
   return adjusted.sort((a, b) => b.baseScore - a.baseScore);
+}
+
+/**
+ * Turn a low-intent content gap into a "consolidate references" recommendation
+ * instead of a page-build. Mentioned-but-not-searched entities (the company's own
+ * city, a brand a user named in passing) shouldn't get a dedicated page — but the
+ * scattered references are still worth tidying, so we surface a low-priority
+ * cleanup rather than dropping the finding silently.
+ */
+function reframeAsConsolidate(f: Finding, signal: DemandSignal): Finding {
+  const entity = f.entityName ?? "this entity";
+  return {
+    ...f,
+    // Recategorize as internal_linking: "consolidate scattered references" is a
+    // linking/cleanup task, not a content gap — and this keeps the Blueprint
+    // agent (which only blueprints content_gap/locality_page) from drafting a
+    // page outline for an entity we've decided shouldn't get a page.
+    category: "internal_linking",
+    issue: `"${entity}" is referenced repeatedly but has low search demand — it doesn't warrant a dedicated page`,
+    expectedImpact: "low",
+    risk: "low",
+    // Hard-cap so a mentioned-but-not-searched entity can never rank as a build.
+    baseScore: Math.min(f.baseScore, 28),
+    suggestedTitle: `Consolidate "${entity}" references — no dedicated page needed`,
+    suggestedImplementation: `Demand validation scored "${entity}" ${signal.score}/100 (${signal.intent} intent) — it's mentioned across the site but isn't something buyers search for, so a dedicated page wouldn't earn qualified traffic. Instead of creating one, consolidate the scattered references: point them at the most relevant existing page (or an About/contact anchor) and keep the naming consistent. Do NOT build a standalone page.`,
+    // Drop the "build a new page" target files — this is no longer a page build.
+    targetFiles: f.targetFiles.filter((t) => /sitemap/i.test(t)),
+  };
 }
