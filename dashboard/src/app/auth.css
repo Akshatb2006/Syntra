@@ -1,0 +1,237 @@
+/* Auth screens (login + onboarding) — Syntra brand split-screen. Left: a dark,
+   grid-lit brand panel with the value prop. Right: a clean sign-in card on the
+   themed surface. Echoes the landing hero (teal accent, grid background, em
+   accent on the headline). */
+
+.auth-split {
+  /* Cover the viewport regardless of the app shell's 100vh/overflow-hidden grid;
+     scroll on short screens. */
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: 1.06fr 1fr;
+  background: var(--bg);
+  z-index: 50;
+}
+
+/* ---- Left brand panel (always dark, regardless of theme) ---- */
+.auth-brand-panel {
+  position: relative;
+  overflow: hidden;
+  padding: 60px 60px 46px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  color: #f4f7fb;
+  background:
+    radial-gradient(ellipse 90% 70% at 18% -5%, rgba(45, 212, 191, 0.22), transparent 60%),
+    radial-gradient(ellipse 80% 60% at 95% 105%, rgba(45, 212, 191, 0.1), transparent 55%),
+    #080a0e;
+}
+.auth-brand-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 46px 46px;
+  mask-image: radial-gradient(ellipse 85% 75% at 28% 18%, black 0%, transparent 78%);
+  -webkit-mask-image: radial-gradient(ellipse 85% 75% at 28% 18%, black 0%, transparent 78%);
+  pointer-events: none;
+}
+.auth-brand-panel > * {
+  position: relative;
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  font-weight: 600;
+  font-size: 16.5px;
+  letter-spacing: -0.01em;
+}
+.auth-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #2dd4bf, #5eead4);
+  color: #04211d;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 17px;
+}
+
+.auth-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #5eead4;
+  background: rgba(45, 212, 191, 0.12);
+  border: 1px solid rgba(45, 212, 191, 0.3);
+  margin-bottom: 22px;
+}
+.auth-eyebrow .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #2dd4bf;
+  box-shadow: 0 0 0 4px rgba(45, 212, 191, 0.18);
+}
+
+.auth-head {
+  max-width: 470px;
+}
+.auth-head h2 {
+  font-size: 39px;
+  line-height: 1.08;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  margin: 0 0 16px;
+}
+.auth-head h2 em {
+  font-style: normal;
+  color: #5eead4;
+}
+.auth-head p {
+  font-size: 15px;
+  line-height: 1.6;
+  color: #a9b3c1;
+  margin: 0;
+}
+
+.auth-points {
+  list-style: none;
+  margin: 32px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+.auth-points li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  color: #dbe2ec;
+}
+.auth-points .tick {
+  width: 21px;
+  height: 21px;
+  border-radius: 6px;
+  flex: 0 0 auto;
+  background: rgba(45, 212, 191, 0.16);
+  color: #5eead4;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+.auth-foot {
+  font-size: 12px;
+  color: #6b7686;
+}
+
+/* ---- Right sign-in panel ---- */
+.auth-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 28px;
+}
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+}
+.auth-card-brand {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 22px;
+  font-weight: 600;
+  font-size: 16px;
+}
+.auth-title {
+  font-size: 25px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  margin: 0 0 7px;
+  color: var(--fg);
+}
+.auth-sub {
+  color: var(--fg-muted);
+  font-size: 14px;
+  line-height: 1.55;
+  margin: 0 0 26px;
+}
+.auth-error {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border: 1px solid var(--danger-border);
+  border-radius: 10px;
+  padding: 11px 13px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  margin-bottom: 18px;
+}
+.auth-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  width: 100%;
+  padding: 13px 16px;
+  border-radius: 11px;
+  border: 1px solid var(--border-2);
+  background: var(--surface-2);
+  color: var(--fg);
+  font-size: 14.5px;
+  font-weight: 550;
+  text-decoration: none;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.05s ease;
+}
+.auth-google:hover {
+  background: var(--surface-3);
+  border-color: var(--accent);
+  text-decoration: none;
+}
+.auth-google:active {
+  transform: translateY(1px);
+}
+.auth-dev {
+  display: block;
+  text-align: center;
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--fg-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.auth-fine {
+  color: var(--fg-dim);
+  font-size: 11.5px;
+  line-height: 1.55;
+  margin: 26px 0 0;
+  text-align: center;
+}
+
+@media (max-width: 880px) {
+  .auth-split {
+    grid-template-columns: 1fr;
+  }
+  .auth-brand-panel {
+    display: none;
+  }
+  .auth-card-brand {
+    display: flex;
+  }
+}

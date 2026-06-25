@@ -1,4 +1,5 @@
 import { env } from "@/lib/env";
+import "../auth.css";
 
 export const dynamic = "force-dynamic";
 
@@ -17,119 +18,77 @@ export default async function LoginPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const { error } = await searchParams;
+
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 24,
-        background: "var(--bg)",
-      }}
-    >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: 400,
-          background: "var(--surface)",
-          border: "1px solid var(--border)",
-          borderRadius: 16,
-          padding: "36px 32px",
-          textAlign: "center",
-        }}
-      >
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 9,
-            marginBottom: 22,
-            fontWeight: 600,
-            fontSize: 17,
-          }}
-        >
-          <span
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: 8,
-              background: "var(--accent)",
-              color: "#fff",
-              display: "grid",
-              placeItems: "center",
-              fontWeight: 700,
-            }}
-          >
-            S
-          </span>
+    <div className="auth-split">
+      {/* LEFT — brand panel */}
+      <aside className="auth-brand-panel">
+        <div className="auth-brand">
+          <span className="auth-mark">S</span>
           Syntra
         </div>
-        <h1 style={{ fontSize: 22, fontWeight: 650, margin: "0 0 6px" }}>Sign in to Syntra</h1>
-        <p style={{ color: "var(--fg-muted)", fontSize: 13.5, margin: "0 0 24px", lineHeight: 1.5 }}>
-          Run an AI SEO audit on your site in a couple of minutes.
-        </p>
 
-        {error && (
-          <div
-            style={{
-              background: "var(--danger-soft, rgba(220,50,50,.08))",
-              color: "var(--danger)",
-              border: "1px solid var(--border)",
-              borderRadius: 10,
-              padding: "10px 12px",
-              fontSize: 12.5,
-              lineHeight: 1.5,
-              marginBottom: 18,
-              textAlign: "left",
-            }}
-          >
-            {ERRORS[error] ?? "Something went wrong. Please try again."}
+        <div>
+          <span className="auth-eyebrow">
+            <span className="dot" />
+            Detect → Plan → Implement → Validate
+          </span>
+          <div className="auth-head">
+            <h2>
+              The autonomous SEO engineer that <em>ships real changes</em>.
+            </h2>
+            <p>
+              Sign in to point Syntra at your site. It crawls, finds the
+              highest-impact gaps with evidence, and shows you exactly what to build
+              — in a couple of minutes.
+            </p>
           </div>
-        )}
+          <ul className="auth-points">
+            <li>
+              <span className="tick">✓</span> Evidence-backed audits, not generic tips
+            </li>
+            <li>
+              <span className="tick">✓</span> Knows demand &amp; competitors, not just keywords
+            </li>
+            <li>
+              <span className="tick">✓</span> Adapts to any industry, any site
+            </li>
+          </ul>
+        </div>
 
-        <a
-          href="/api/auth/login"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 10,
-            width: "100%",
-            padding: "12px 16px",
-            borderRadius: 10,
-            border: "1px solid var(--border-2, var(--border))",
-            background: "var(--surface-2, #fff)",
-            color: "var(--fg)",
-            fontSize: 14.5,
-            fontWeight: 550,
-            textDecoration: "none",
-          }}
-        >
-          <GoogleMark />
-          Continue with Google
-        </a>
+        <div className="auth-foot">© Syntra · Built for operators who like to watch agents work.</div>
+      </aside>
 
-        {env.devLogin && (
-          <a
-            href="/api/auth/dev?email=dev@syntra.local&name=Dev+User"
-            style={{
-              display: "block",
-              marginTop: 12,
-              fontSize: 12,
-              color: "var(--fg-muted)",
-              textDecoration: "underline",
-            }}
-          >
-            Dev login (local testing only)
+      {/* RIGHT — sign-in card */}
+      <main className="auth-main">
+        <div className="auth-card">
+          <div className="auth-card-brand">
+            <span className="auth-mark">S</span>
+            Syntra
+          </div>
+
+          <h1 className="auth-title">Sign in to Syntra</h1>
+          <p className="auth-sub">Run an AI SEO audit on your site in a couple of minutes.</p>
+
+          {error && <div className="auth-error">{ERRORS[error] ?? "Something went wrong. Please try again."}</div>}
+
+          <a className="auth-google" href="/api/auth/login">
+            <GoogleMark />
+            Continue with Google
           </a>
-        )}
 
-        <p style={{ color: "var(--fg-dim, var(--fg-muted))", fontSize: 11.5, margin: "22px 0 0", lineHeight: 1.5 }}>
-          We only use your Google email to identify your account. By continuing you agree to use
-          the Syntra trial responsibly.
-        </p>
-      </div>
+          {env.devLogin && (
+            <a className="auth-dev" href="/api/auth/dev?email=dev@syntra.local&name=Dev+User">
+              Dev login (local testing only)
+            </a>
+          )}
+
+          <p className="auth-fine">
+            We only use your Google email to identify your account. By continuing you agree to use
+            the Syntra trial responsibly.
+          </p>
+        </div>
+      </main>
     </div>
   );
 }
