@@ -123,12 +123,14 @@ function buildSiteCoverage(crawl: CrawlSeoOutput): {
 export async function createRun(
   input: RunInput,
   credentialsRef?: string | null,
+  owner?: string | null,
 ): Promise<Run> {
   const id = newId("run");
   const workspaceId = `ws-${id.slice(-12)}`;
   const now = Date.now();
   const run: Run = {
     id,
+    owner: owner ?? null,
     input,
     status: "queued",
     engineVersion: ENGINE_VERSION,

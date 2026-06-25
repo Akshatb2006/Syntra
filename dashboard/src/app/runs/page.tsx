@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { sqliteStore } from "@/infra/store/sqlite";
+import { getSession } from "@/lib/auth/server";
 import { RunStatusBadge } from "@/ui/components/StatusBadge";
 
 export const dynamic = "force-dynamic";
@@ -13,8 +15,11 @@ function timeAgo(ms: number): string {
   return `${Math.floor(d / 86_400_000)}d ago`;
 }
 
-export default function RunsIndexPage() {
-  const runs = sqliteStore.runs.list(50);
+export default async function RunsIndexPage() {
+  const session = await getSession();
+  if (!session) redirect("/login");
+  // Only this user's runs — never anyone else's.
+  const runs = sqliteStore.runs.list(50, session.uid);
   return (
     <div className="page-shell">
       <div className="section-head">

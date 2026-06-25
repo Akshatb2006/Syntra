@@ -41,9 +41,15 @@ export function HeroAuditForm() {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          input: { siteUrl, trigger: { kind: "manual", userId: "anon" } },
+          // userId is overridden server-side from the session; sent only to
+          // satisfy the request schema.
+          input: { siteUrl, trigger: { kind: "manual", userId: "self" } },
         }),
       });
+      if (res.status === 401) {
+        router.push("/login");
+        return;
+      }
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Could not start the audit");
       router.push(`/runs/${json.run.id}`);
@@ -76,7 +82,7 @@ export function HeroAuditForm() {
         <div className="hero-audit-error">{error}</div>
       ) : (
         <div className="hero-audit-note">
-          No signup, no GitHub — just your URL. A real audit in a couple of minutes.
+          Paste your URL — a real audit in a couple of minutes.
         </div>
       )}
     </form>

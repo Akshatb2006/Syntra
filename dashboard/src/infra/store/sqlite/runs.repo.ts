@@ -4,6 +4,7 @@ import { getDb } from "./client";
 
 interface Row {
   id: string;
+  owner: string | null;
   input_json: string;
   status: string;
   engine_version: string;
@@ -23,6 +24,7 @@ interface Row {
 function toRun(row: Row): Run {
   return {
     id: row.id,
+    owner: row.owner ?? null,
     input: JSON.parse(row.input_json) as Run["input"],
     status: row.status as RunStatus,
     engineVersion: row.engine_version ?? "v0",
@@ -50,13 +52,14 @@ export const runsRepo: RunsRepoPort = {
   insert(run) {
     getDb()
       .prepare(
-        `INSERT INTO runs (id, input_json, status, engine_version, detector_version, credentials_ref, workspace_id, pr_url, preview_url,
+        `INSERT INTO runs (id, owner, input_json, status, engine_version, detector_version, credentials_ref, workspace_id, pr_url, preview_url,
           baseline_lh_json, after_lh_json, error_json, created_at, updated_at, completed_at)
-        VALUES (@id, @input, @status, @engineVersion, @detectorVersion, @credentialsRef, @workspaceId, @prUrl, @previewUrl,
+        VALUES (@id, @owner, @input, @status, @engineVersion, @detectorVersion, @credentialsRef, @workspaceId, @prUrl, @previewUrl,
           @baseline, @after, @error, @createdAt, @updatedAt, @completedAt)`,
       )
       .run({
         id: run.id,
+        owner: run.owner ?? null,
         input: JSON.stringify(run.input),
         status: run.status,
         engineVersion: run.engineVersion,
@@ -81,10 +84,17 @@ export const runsRepo: RunsRepoPort = {
       .get(runId) as Row | undefined;
     return row ? toRun(row) : undefined;
   },
-  list(limit = 50) {
-    const rows = getDb()
-      .prepare("SELECT * FROM runs ORDER BY created_at DESC LIMIT ?")
-      .all(limit) as Row[];
+  list(limit = 50, owner) {
+    // When an owner is given, scope strictly to their runs — this is the query
+    // that keeps the runs list per-user. Without an owner (internal/admin use)
+    // it returns all runs.
+    const rows = owner
+      ? (getDb()
+          .prepare("SELECT * FROM runs WHERE owner = ? ORDER BY created_at DESC LIMIT ?")
+          .all(owner, limit) as Row[])
+      : (getDb()
+          .prepare("SELECT * FROM runs ORDER BY created_at DESC LIMIT ?")
+          .all(limit) as Row[]);
     return rows.map(toRun);
   },
   patchStatus(runId, status) {

@@ -1,6 +1,20 @@
 export const SCHEMA_SQL = `
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY,
+  email TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL DEFAULT '',
+  image TEXT,
+  company TEXT,
+  website TEXT,
+  role TEXT,
+  onboarded INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+
 CREATE TABLE IF NOT EXISTS runs (
   id TEXT PRIMARY KEY,
+  owner TEXT,
   input_json TEXT NOT NULL,
   status TEXT NOT NULL,
   engine_version TEXT NOT NULL DEFAULT 'v0',
@@ -18,6 +32,8 @@ CREATE TABLE IF NOT EXISTS runs (
 );
 CREATE INDEX IF NOT EXISTS idx_runs_created_at ON runs(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_runs_status ON runs(status);
+-- idx_runs_owner is created in client.ts AFTER the owner column is migrated in,
+-- so it can't reference a column that doesn't exist yet on a pre-auth DB.
 
 CREATE TABLE IF NOT EXISTS agent_steps (
   id TEXT PRIMARY KEY,

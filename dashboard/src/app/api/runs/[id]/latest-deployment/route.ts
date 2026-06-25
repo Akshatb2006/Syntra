@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sqliteStore } from "@/infra/store/sqlite";
+import { requireOwnedRun } from "@/lib/auth/guard";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -19,8 +20,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const run = sqliteStore.runs.get(id);
-  if (!run) return NextResponse.json({ error: "Run not found" }, { status: 404 });
+  const g = await requireOwnedRun(id);
+  if (!g.ok) return g.res;
+  const { run } = g;
 
   const creds = sqliteStore.secrets.get(run.credentialsRef);
   if (!creds?.vercelToken || !creds.vercelProjectId) {

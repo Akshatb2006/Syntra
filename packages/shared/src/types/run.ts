@@ -46,6 +46,12 @@ export type RunTrigger =
 
 export interface Run {
   id: string;
+  /**
+   * The authenticated user (users-table id) who created this run. Every run API
+   * checks this against the session so users only ever see their own runs.
+   * Nullable for legacy/anonymous runs created before auth existed.
+   */
+  owner: string | null;
   input: RunInput;
   status: RunStatus;
   /**
