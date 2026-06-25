@@ -775,6 +775,44 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
   font-weight: 500;
   font-size: 13px;
 }
+/* Opportunity breakdown — the decomposed prioritization view (impact / demand /
+   competitive gap / effort / confidence). Reuses the priority bar vocabulary. */
+.sug-opportunity {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+.sug-opportunity > .label-sm {
+  display: block;
+  color: var(--fg-muted);
+  margin-bottom: 8px;
+}
+.opp-grid { display: flex; flex-direction: column; gap: 7px; }
+.opp-metric { display: flex; align-items: center; gap: 9px; }
+.opp-metric .opp-label {
+  flex: 0 0 110px;
+  color: var(--fg-muted);
+}
+.opp-metric .bar {
+  flex: 1;
+  height: 5px;
+  background: var(--surface);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.opp-metric .fill { height: 100%; background: var(--accent); }
+.opp-metric .fill.med { background: var(--warn); }
+.opp-metric .num {
+  flex: 0 0 28px;
+  text-align: right;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--fg);
+  font-weight: 500;
+  font-size: 12.5px;
+}
+
 /* Click-to-expand headline. Collapsed = title + teaser; click reveals detail. */
 .sug-head-btn {
   display: flex;

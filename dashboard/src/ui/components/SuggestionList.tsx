@@ -1,6 +1,11 @@
 "use client";
 import { useState } from "react";
-import type { Suggestion, SuggestionCategory, SuggestionEvidence } from "@growth/shared/types";
+import type {
+  OpportunityScore,
+  Suggestion,
+  SuggestionCategory,
+  SuggestionEvidence,
+} from "@growth/shared/types";
 
 interface Props {
   suggestions: Suggestion[];
@@ -159,6 +164,75 @@ function BusinessInsight({ s }: { s: Suggestion }) {
   );
 }
 
+/**
+ * Opportunity breakdown — the "prioritization system" view. Shows WHY a
+ * suggestion ranks where it does: business value, validated demand, the
+ * competitive gap, build cost, and evidence strength, all feeding one priority.
+ * Absent on legacy suggestions (renders nothing).
+ */
+function OppMetric({
+  label,
+  value,
+  hint,
+  invert,
+}: {
+  label: string;
+  value: number;
+  hint: string;
+  invert?: boolean;
+}) {
+  // invert = "lower is better" (effort): green when low, amber otherwise.
+  const strong = invert ? value <= 35 : value >= 70;
+  const cls = strong ? "" : "med";
+  return (
+    <div className="opp-metric" title={hint}>
+      <span className="label-sm opp-label">{label}</span>
+      <div className="bar">
+        <div className={`fill ${cls}`} style={{ width: `${Math.min(100, value)}%` }} />
+      </div>
+      <span className="num">{Math.round(value)}</span>
+    </div>
+  );
+}
+
+function OpportunityBreakdown({ opp, isGap }: { opp: OpportunityScore; isGap: boolean }) {
+  return (
+    <div className="sug-opportunity">
+      <span className="label-sm">Opportunity · priority {Math.round(opp.priority)}</span>
+      <div className="opp-grid">
+        <OppMetric label="Impact" value={opp.impact} hint="Business value / revenue potential" />
+        {isGap && (
+          <OppMetric label="Demand" value={opp.demand} hint="Validated search demand for this entity" />
+        )}
+        {isGap && opp.competitiveGap > 0 && (
+          <OppMetric
+            label="Competitive gap"
+            value={opp.competitiveGap}
+            hint="How much competitors own this that you don't"
+          />
+        )}
+        <OppMetric label="Effort" value={opp.effort} hint="Implementation cost (lower is better)" invert />
+        <OppMetric
+          label="Confidence"
+          value={Math.round(opp.confidence * 100)}
+          hint="Evidence strength — how sure we are the deficit is real"
+        />
+      </div>
+    </div>
+  );
+}
+
+/** Effort glance pill for the meta row. Low effort = good = green. */
+function EffortPill({ effort }: { effort: number }) {
+  const label = effort <= 35 ? "LOW" : effort <= 60 ? "MED" : "HIGH";
+  const cls = effort <= 35 ? "high" : effort <= 60 ? "med" : "low";
+  return (
+    <span className={`pill ${cls}`} title={`Implementation effort ${Math.round(effort)}/100 — lower is better`}>
+      {label}
+    </span>
+  );
+}
+
 const IMPACT_PILL: Record<Suggestion["expectedImpact"], string> = {
   low: "low",
   medium: "med",
@@ -294,6 +368,12 @@ export function SuggestionList({ suggestions, onDevelop }: Props) {
                         </div>
                       )}
                       <BusinessInsight s={s} />
+                      {s.opportunity && (
+                        <OpportunityBreakdown
+                          opp={s.opportunity}
+                          isGap={s.category === "content_gap" || s.category === "locality_page"}
+                        />
+                      )}
                       {s.demand && s.demand.competitorsOwning.length > 0 && (
                         <div className="sug-issue">
                           <span className="label-sm">Competitor gap</span>
@@ -335,6 +415,12 @@ export function SuggestionList({ suggestions, onDevelop }: Props) {
                       <span className="label-sm">Impact</span>
                       <span className={`pill ${IMPACT_PILL[s.expectedImpact]}`}>{IMPACT_LABEL[s.expectedImpact]}</span>
                     </div>
+                    {s.opportunity && (
+                      <div className="pair">
+                        <span className="label-sm">Effort</span>
+                        <EffortPill effort={s.opportunity.effort} />
+                      </div>
+                    )}
                     <div className="sug-priority">
                       <span className="label-sm">Priority</span>
                       <div className="bar">

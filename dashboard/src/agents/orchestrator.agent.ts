@@ -1,16 +1,17 @@
 import { BaseAgent, type AgentContext, type ToolDef } from "./base";
 import type { SpanHandle } from "@/core/ports/tracer.port";
 import { AGENTS } from "@growth/shared/constants";
-import type {
-  BusinessProfile,
-  Finding,
-  Suggestion,
-  SuggestionCategory,
-} from "@growth/shared/types";
+import type { BusinessProfile, Finding, Suggestion } from "@growth/shared/types";
 import { newId } from "@/lib/id";
 import type { CrawlSeoOutput } from "./crawl-seo.agent";
 import type { GeoIntelOutput } from "./geo-intel.agent";
 import { EnrichmentAgent } from "./enrichment.agent";
+import {
+  CATEGORY_FAMILY,
+  FAMILIES,
+  scoreOpportunity,
+  type Family,
+} from "@/orchestration/scoring";
 
 export interface OrchestratorInput {
   siteUrl: string;
@@ -39,37 +40,11 @@ interface RankedItem {
 }
 
 /**
- * Detector categories grouped into the four FAMILIES a senior audit balances
- * across. The point (per the product owner): a report that's 9 metadata fixes +
- * 2 business ideas reads like a linter; one that's 9 business ideas + 2 meta
- * fixes "misses the basics". The strongest report is a healthy MIX. We enforce
- * that downstream with deterministic quotas so no single family can monopolize.
- */
-type Family = "business" | "technical" | "performance" | "accessibility";
-
-const CATEGORY_FAMILY: Record<SuggestionCategory, Family> = {
-  // Revenue / growth opportunities — the differentiators.
-  content_gap: "business",
-  locality_page: "business",
-  internal_linking: "business",
-  content_quality: "business",
-  // Structural SEO — necessities, not differentiators.
-  metadata: "technical",
-  schema: "technical",
-  structured_data: "technical",
-  sitemap_robots: "technical",
-  // Technical performance.
-  performance: "performance",
-  image_optimization: "performance",
-  // Accessibility & compliance.
-  accessibility: "accessibility",
-};
-
-/**
  * Per-family slot budget for the final report. `min` guarantees representation
  * (business/content gaps can't be crowded out by hygiene; basics can't be
  * skipped); `max` stops any one family from taking over. Mins are best-effort —
- * a family with fewer real findings simply contributes what it has.
+ * a family with fewer real findings simply contributes what it has. The family
+ * map itself lives in scoring.ts so ranking and selection share one definition.
  */
 const FAMILY_QUOTA: Record<Family, { min: number; max: number }> = {
   business: { min: 3, max: 5 },
@@ -77,8 +52,6 @@ const FAMILY_QUOTA: Record<Family, { min: number; max: number }> = {
   performance: { min: 0, max: 3 },
   accessibility: { min: 0, max: 2 },
 };
-
-const FAMILIES: Family[] = ["business", "technical", "performance", "accessibility"];
 
 /** Total cards in a balanced report. */
 const REPORT_BUDGET = 12;
@@ -317,14 +290,17 @@ ${evidence}
     const system = `You are the Orchestrator for an autonomous growth-engineering platform working on a ${profile.industry} site built with ${framework}.
 You are given DEFICITS that were already detected deterministically from crawl + Lighthouse + geo data. Each deficit carries MEASURED evidence.
 
-Your job is to RANK and PHRASE — NOT to invent. Specifically you must:
-- assign every deficit a priorityScore (0..100) reflecting impact-for-effort for THIS business,
-- write a crisp action title and a concrete one-paragraph implementation plan for each,
-- write a 1-sentence rationale tying the fix to its evidence.
+Your job is to PHRASE — NOT to invent and NOT to score. Priority is computed by
+the platform deterministically (impact / demand / competitive gap / effort /
+confidence), so you do not assign numbers. For each deficit you must:
+- write a crisp action title,
+- write a concrete one-paragraph implementation plan,
+- write a 1-sentence rationale tying the fix to its evidence (and to its demand /
+  competitor signal when present).
 
-Score on merit: give genuinely redundant or trivial deficits a LOW score. Do NOT prune for category balance or try to limit the count — the final report is assembled downstream with per-category quotas, so your job is honest scoring + phrasing, not selection. Phrase EVERY deficit you are given; any deficit you omit simply keeps its default score and phrasing.
-
-WEIGHT DEMAND: some content-gap deficits carry a "demand:" line (validated search demand for the entity). A high-demand, commercial gap with competitor pages is far more valuable to build than a regulatory/low-demand mention — score accordingly. When a gap's demand is low or regulatory intent, score it LOW even if the entity is mentioned often.
+Phrase EVERY deficit you are given; any deficit you omit simply keeps its default
+phrasing. The "demand:" line on some deficits (validated search demand + competitor
+ownership) is useful context for your rationale — lean on it when it's there.
 
 HARD RULES:
 - Refer to each deficit by its #index. Do NOT restate or alter its evidence — it is attached automatically.
@@ -334,7 +310,7 @@ HARD RULES:
 Output ONLY JSON (no prose), shape:
 {
   "items": [
-    { "index": 0, "title": "...", "implementation": "...", "rationale": "...", "priorityScore": 0..100 }
+    { "index": 0, "title": "...", "implementation": "...", "rationale": "..." }
   ],
   "rationale": "1-2 sentences on the overall priorities"
 }`;
@@ -375,30 +351,35 @@ Produce the JSON now.`;
     findings: Finding[],
     ranked: RankedItem[] | null,
   ): Suggestion[] {
-    const base = (f: Finding, over?: Partial<RankedItem>): Suggestion => ({
-      id: newId("sug"),
-      runId,
-      category: f.category,
-      title: over?.title?.trim() || f.suggestedTitle,
-      issue: f.issue,
-      evidence: f.evidence,
-      confidence: f.confidence,
-      description: over?.title?.trim() || f.suggestedTitle,
-      rationale: over?.rationale?.trim() || `${f.expectedImpact} impact (${f.category}).`,
-      implementation: over?.implementation?.trim() || f.suggestedImplementation,
-      expectedImpact: f.expectedImpact,
-      risk: f.risk,
-      priorityScore:
-        typeof over?.priorityScore === "number"
-          ? Math.max(0, Math.min(100, over.priorityScore))
-          : f.baseScore,
-      targetFiles: f.targetFiles,
-      demand: f.demand,
-      geoContext: f.geoContext,
-      status: "proposed",
-      dispatchJobId: null,
-      prNumber: null,
-    });
+    const base = (f: Finding, over?: Partial<RankedItem>): Suggestion => {
+      // Priority is now DETERMINISTIC: the decomposed opportunity score, derived
+      // from measured signals (impact / demand / competitive gap / effort /
+      // confidence). The LLM contributes phrasing only — it no longer owns the
+      // number, so the ranking is transparent and reproducible.
+      const opportunity = scoreOpportunity(f);
+      return {
+        id: newId("sug"),
+        runId,
+        category: f.category,
+        title: over?.title?.trim() || f.suggestedTitle,
+        issue: f.issue,
+        evidence: f.evidence,
+        confidence: f.confidence,
+        description: over?.title?.trim() || f.suggestedTitle,
+        rationale: over?.rationale?.trim() || `${f.expectedImpact} impact (${f.category}).`,
+        implementation: over?.implementation?.trim() || f.suggestedImplementation,
+        expectedImpact: f.expectedImpact,
+        risk: f.risk,
+        priorityScore: opportunity.priority,
+        opportunity,
+        targetFiles: f.targetFiles,
+        demand: f.demand,
+        geoContext: f.geoContext,
+        status: "proposed",
+        dispatchJobId: null,
+        prNumber: null,
+      };
+    };
 
     // Index the LLM's phrasing/scores by the finding they cite (first wins).
     const overById = new Map<number, RankedItem>();

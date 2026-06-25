@@ -72,7 +72,13 @@ async function main() {
   const sugs = sqliteStore.suggestions.byRun(run.id);
   console.log(`\n=== SUGGESTIONS (${sugs.length}) ===`);
   for (const s of sugs.sort((a, b) => b.priorityScore - a.priorityScore)) {
-    console.log(`\n[${s.category}] ${s.title}  (score ${Math.round(s.priorityScore)}, conf ${s.confidence})`);
+    console.log(`\n[${s.category}] ${s.title}  (priority ${Math.round(s.priorityScore)}, conf ${s.confidence})`);
+    if (s.opportunity) {
+      const o = s.opportunity;
+      console.log(
+        `  opportunity: impact ${o.impact} · demand ${o.demand} · compGap ${o.competitiveGap} · effort ${o.effort} → priority ${o.priority}`,
+      );
+    }
     console.log(`  issue: ${s.issue}`);
     if (s.demand)
       console.log(

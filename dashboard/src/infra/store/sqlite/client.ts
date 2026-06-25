@@ -41,5 +41,8 @@ export function getDb(): Db {
   // Demand-validation signal for content-gap entities (band/score/intent/
   // competitor ownership). Nullable — non-gap or pre-demand rows render without it.
   safeAlter("ALTER TABLE suggestions ADD COLUMN demand_json TEXT");
+  // Decomposed opportunity score (impact/demand/competitive gap/effort/confidence
+  // → priority). Nullable — pre-scoring-v2 rows render with priorityScore only.
+  safeAlter("ALTER TABLE suggestions ADD COLUMN opportunity_json TEXT");
   return db;
 }

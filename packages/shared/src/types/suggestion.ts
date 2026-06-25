@@ -86,6 +86,29 @@ export interface Finding {
   geoContext?: GeoSuggestionContext;
 }
 
+/**
+ * Decomposed opportunity score — the "prioritization system" view. Instead of a
+ * single opaque priority number, every suggestion exposes WHY it ranks where it
+ * does: business value, validated demand, the competitive gap, what it costs to
+ * build, and how strong the evidence is. `priority` is the deterministic
+ * composite the report sorts by. All sub-scores are derived in code from measured
+ * signals — never LLM-set — so the ranking is transparent and reproducible.
+ */
+export interface OpportunityScore {
+  /** Business value / revenue potential, 0..100. */
+  impact: number;
+  /** Validated search demand, 0..100 (0 when not an entity gap). */
+  demand: number;
+  /** How much competitors own this that you don't, 0..100 (0 when N/A). */
+  competitiveGap: number;
+  /** Implementation cost, 0..100 — higher means more work. */
+  effort: number;
+  /** Evidence strength, 0..1 (mirrors Suggestion.confidence). */
+  confidence: number;
+  /** Composite priority derived from the dimensions above, 0..100. */
+  priority: number;
+}
+
 export interface Suggestion {
   id: string;
   runId: string;
@@ -116,7 +139,18 @@ export interface Suggestion {
   implementation: string;
   expectedImpact: SuggestionImpact;
   risk: SuggestionRisk;
+  /**
+   * Composite priority the report sorts by, 0..100. Now the deterministic
+   * `opportunity.priority` (see below) rather than an LLM number — kept as a flat
+   * field for back-compat and sorting.
+   */
   priorityScore: number;
+  /**
+   * Decomposed opportunity breakdown (impact / demand / competitive gap / effort /
+   * confidence → priority). The "prioritization system" view; absent on legacy
+   * suggestions, in which case only priorityScore renders.
+   */
+  opportunity?: OpportunityScore;
   targetFiles: string[];
   /**
    * Observed search demand for a content-gap entity (band, score, competitor
