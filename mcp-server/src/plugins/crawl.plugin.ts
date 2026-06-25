@@ -13,6 +13,9 @@ interface ExtractedMeta {
   twitterTags: Record<string, string>;
   h1Count: number;
   h2Count: number;
+  h1Text: string[];
+  h2Text: string[];
+  internalLinkTexts: string[];
   imagesMissingAlt: number;
   hasStructuredData: boolean;
   structuredDataTypes: string[];
@@ -32,6 +35,9 @@ const META_EXTRACTOR = (rootOrigin: string): string => `
     twitterTags: {},
     h1Count: document.querySelectorAll('h1').length,
     h2Count: document.querySelectorAll('h2').length,
+    h1Text: [],
+    h2Text: [],
+    internalLinkTexts: [],
     imagesMissingAlt: 0,
     hasStructuredData: false,
     structuredDataTypes: [],
@@ -40,6 +46,9 @@ const META_EXTRACTOR = (rootOrigin: string): string => `
     wordCount: (document.body?.innerText || '').trim().split(/\\s+/).filter(Boolean).length,
     generator: null,
   };
+  const cleanText = (s) => (s || '').replace(/\\s+/g, ' ').trim().slice(0, 120);
+  document.querySelectorAll('h1').forEach((h) => { const t = cleanText(h.textContent); if (t && out.h1Text.length < 6) out.h1Text.push(t); });
+  document.querySelectorAll('h2').forEach((h) => { const t = cleanText(h.textContent); if (t && out.h2Text.length < 16) out.h2Text.push(t); });
   const desc = document.querySelector('meta[name="description"]');
   if (desc) out.description = desc.getAttribute('content');
   const can = document.querySelector('link[rel="canonical"]');
@@ -73,8 +82,10 @@ const META_EXTRACTOR = (rootOrigin: string): string => `
     try { abs = new URL(href, location.href).toString(); } catch { return; }
     if (seen.has(abs)) return;
     seen.add(abs);
-    if (abs.startsWith(${JSON.stringify(rootOrigin)})) out.internalLinks.push(abs);
-    else if (abs.startsWith('http')) out.externalLinks.push(abs);
+    if (abs.startsWith(${JSON.stringify(rootOrigin)})) {
+      out.internalLinks.push(abs);
+      out.internalLinkTexts.push(cleanText(a.textContent));
+    } else if (abs.startsWith('http')) out.externalLinks.push(abs);
   });
   return out;
 })();
@@ -236,6 +247,11 @@ export const crawlPlugin: Plugin = {
                 twitterTags: meta.twitterTags,
                 h1Count: meta.h1Count,
                 h2Count: meta.h2Count,
+                h1Text: meta.h1Text,
+                h2Text: meta.h2Text,
+                linkTexts: meta.internalLinkTexts
+                  .slice(0, 100)
+                  .filter((t) => t && t.length > 0),
                 imagesMissingAlt: meta.imagesMissingAlt,
                 hasStructuredData: meta.hasStructuredData,
                 structuredDataTypes: meta.structuredDataTypes,

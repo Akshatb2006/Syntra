@@ -38,5 +38,8 @@ export function getDb(): Db {
   // legacy suggestions simply render without the Business Insight block.
   safeAlter("ALTER TABLE suggestions ADD COLUMN why_it_matters TEXT");
   safeAlter("ALTER TABLE suggestions ADD COLUMN business_impact TEXT");
+  // Demand-validation signal for content-gap entities (band/score/intent/
+  // competitor ownership). Nullable — non-gap or pre-demand rows render without it.
+  safeAlter("ALTER TABLE suggestions ADD COLUMN demand_json TEXT");
   return db;
 }

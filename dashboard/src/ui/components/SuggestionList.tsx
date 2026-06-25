@@ -22,6 +22,7 @@ const TIER: Record<SuggestionCategory, 1 | 2 | 3> = {
   internal_linking: 1,
   accessibility: 1,
   locality_page: 1,
+  content_gap: 1,
   performance: 2,
   image_optimization: 2,
   content_quality: 3,
@@ -31,6 +32,7 @@ const EVIDENCE_SOURCE_LABEL: Record<SuggestionEvidence["source"], string> = {
   crawl: "CRAWL",
   lighthouse: "LIGHTHOUSE",
   geo: "GEO",
+  demand: "DEMAND",
 };
 
 function pagePath(url?: string): string | null {
@@ -59,6 +61,35 @@ function confidenceBand(c: number): { label: string; cls: string } {
   if (c >= 0.95) return { label: "certain", cls: "high" };
   if (c >= 0.8) return { label: "likely", cls: "med" };
   return { label: "inferred", cls: "low" };
+}
+
+/** Demand band → pill class. Mirrors the impact/confidence pill vocabulary. */
+const DEMAND_PILL: Record<NonNullable<Suggestion["demand"]>["band"], string> = {
+  high: "high",
+  medium: "med",
+  low: "low",
+  unknown: "low",
+};
+
+/**
+ * Demand validation pill — the "does anyone search for this?" axis. Shown on
+ * content-gap cards so a commercial gap (Bayut, high) visually outranks a
+ * regulatory mention (TREC, low). Absent on non-gap suggestions.
+ */
+function DemandPill({ demand }: { demand: NonNullable<Suggestion["demand"]> }) {
+  const comp = demand.competitorsOwning.length;
+  const title =
+    `Search demand: ${demand.band} (${demand.intent} intent), score ${demand.score}/100. ` +
+    (comp > 0
+      ? `${comp} competitor${comp === 1 ? "" : "s"} already own a "${demand.entity}" page. `
+      : "") +
+    (demand.observed ? "Observed via web search." : "Model judgement — no SERP data.") +
+    " Not a search-volume figure.";
+  return (
+    <span className={`pill ${DEMAND_PILL[demand.band]}`} title={title}>
+      demand {demand.score}{comp > 0 ? ` · ${comp} comp.` : ""}
+    </span>
+  );
 }
 
 function ConfidencePill({ confidence }: { confidence: number }) {
@@ -243,6 +274,7 @@ export function SuggestionList({ suggestions, onDevelop }: Props) {
                       <span className="sug-title-row">
                         <span className="sug-title">{s.title}</span>
                         <span className="sug-cat">{s.category ?? 'general'}</span>
+                        {s.demand && <DemandPill demand={s.demand} />}
                         <ConfidencePill confidence={s.confidence} />
                       </span>
                       {!isOpen && teaser(s) && (
@@ -261,6 +293,17 @@ export function SuggestionList({ suggestions, onDevelop }: Props) {
                         </div>
                       )}
                       <BusinessInsight s={s} />
+                      {s.demand && s.demand.competitorsOwning.length > 0 && (
+                        <div className="sug-issue">
+                          <span className="label-sm">Competitor gap</span>
+                          <span className="sug-issue-text">
+                            {s.demand.competitorsOwning.length} competitor
+                            {s.demand.competitorsOwning.length === 1 ? "" : "s"} rank with a
+                            dedicated “{s.demand.entity}” page ({s.demand.competitorsOwning.join(", ")})
+                            {" "}— you don’t.
+                          </span>
+                        </div>
+                      )}
                       <EvidenceBlock evidence={s.evidence} />
                       {s.implementation && (
                         <div className="sug-impl">

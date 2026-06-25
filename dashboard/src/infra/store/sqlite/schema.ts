@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS suggestions (
   priority_score REAL NOT NULL,
   target_files_json TEXT NOT NULL,
   geo_context_json TEXT,
+  demand_json TEXT,
   status TEXT NOT NULL,
   dispatch_job_id TEXT,
   pr_number INTEGER,

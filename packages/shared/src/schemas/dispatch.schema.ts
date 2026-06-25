@@ -5,6 +5,7 @@ const suggestionCategoryEnum = z.enum([
   "schema",
   "internal_linking",
   "locality_page",
+  "content_gap",
   "performance",
   "image_optimization",
   "content_quality",

@@ -24,6 +24,7 @@ interface Row {
   priority_score: number;
   target_files_json: string;
   geo_context_json: string | null;
+  demand_json: string | null;
   status: string;
   dispatch_job_id: string | null;
   pr_number: number | null;
@@ -52,6 +53,9 @@ function toSuggestion(row: Row): Suggestion {
     geoContext: row.geo_context_json
       ? (JSON.parse(row.geo_context_json) as Suggestion["geoContext"])
       : undefined,
+    demand: row.demand_json
+      ? (JSON.parse(row.demand_json) as Suggestion["demand"])
+      : undefined,
     status: row.status as Suggestion["status"],
     dispatchJobId: row.dispatch_job_id,
     prNumber: row.pr_number,
@@ -64,11 +68,11 @@ export const suggestionsRepo: SuggestionsRepoPort = {
       `INSERT OR REPLACE INTO suggestions (
         id, run_id, category, title, issue, evidence_json, confidence, description, rationale,
         why_it_matters, business_impact, implementation, expected_impact, risk,
-        priority_score, target_files_json, geo_context_json, status, dispatch_job_id, pr_number
+        priority_score, target_files_json, geo_context_json, demand_json, status, dispatch_job_id, pr_number
       ) VALUES (
         @id, @runId, @category, @title, @issue, @evidence, @confidence, @description, @rationale,
         @whyItMatters, @businessImpact, @implementation, @expectedImpact, @risk,
-        @priorityScore, @targetFiles, @geoContext, @status, @dispatchJobId, @prNumber
+        @priorityScore, @targetFiles, @geoContext, @demand, @status, @dispatchJobId, @prNumber
       )`,
     );
     const tx = getDb().transaction((items: Suggestion[]) => {
@@ -91,6 +95,7 @@ export const suggestionsRepo: SuggestionsRepoPort = {
           priorityScore: s.priorityScore,
           targetFiles: JSON.stringify(s.targetFiles),
           geoContext: s.geoContext ? JSON.stringify(s.geoContext) : null,
+          demand: s.demand ? JSON.stringify(s.demand) : null,
           status: s.status,
           dispatchJobId: s.dispatchJobId,
           prNumber: s.prNumber,

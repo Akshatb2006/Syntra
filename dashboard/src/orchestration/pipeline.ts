@@ -9,8 +9,10 @@ import { AnthropicClient } from "@/infra/llm/anthropic.client";
 import { getSearch } from "@/infra/search/tavily.client";
 import { CrawlSeoAgent } from "@/agents/crawl-seo.agent";
 import { GeoIntelAgent, type GeoIntelOutput } from "@/agents/geo-intel.agent";
+import { DemandIntelAgent, type DemandIntelOutput } from "@/agents/demand-intel.agent";
 import { OrchestratorAgent } from "@/agents/orchestrator.agent";
 import { detectDeficits, DETECTOR_VERSION } from "@/orchestration/deficit-detector";
+import { applyDemand } from "@/orchestration/demand";
 
 /**
  * Version of the audit pipeline (crawl → evidence → findings → ranking) as a
@@ -18,7 +20,7 @@ import { detectDeficits, DETECTOR_VERSION } from "@/orchestration/deficit-detect
  * audit (e.g. crawl-depth/hydration/agent-flow changes), distinct from
  * DETECTOR_VERSION which tracks only the deficit ruleset.
  */
-export const ENGINE_VERSION = "v0.8";
+export const ENGINE_VERSION = "v0.10";
 
 function transition(runId: string, status: RunStatus): void {
   sqliteStore.runs.patchStatus(runId, status);
@@ -213,8 +215,50 @@ async function runPipeline(run: Run): Promise<void> {
     //    orchestrator rank/phrase them. Evidence is computed here, in code —
     //    the LLM cannot invent it.
     transition(run.id, "planning");
-    const findings = detectDeficits({ crawl, geo, profile });
+    let findings = detectDeficits({ crawl, geo, profile });
     logger.info("deficits_detected", { runId: run.id, count: findings.length });
+
+    // 4b. Demand validation — for the content-gap entities only, observe whether
+    //     anyone actually searches for them (SERP presence, competitor ownership,
+    //     commercial-vs-regulatory intent) and re-weight the gaps accordingly. Like
+    //     geo, this is an ENHANCEMENT: a flaky/empty response degrades to the raw
+    //     coverage-based scores rather than sinking the audit.
+    const gapByName = new Map(
+      (crawl.understanding?.contentGaps ?? []).map((g) => [g.entity, g]),
+    );
+    const seenEntity = new Set<string>();
+    const gapEntities = findings
+      .filter((f) => f.category === "content_gap" && f.entityName)
+      .filter((f) => {
+        const n = f.entityName as string;
+        if (seenEntity.has(n)) return false;
+        seenEntity.add(n);
+        return true;
+      })
+      .map((f) => {
+        const g = gapByName.get(f.entityName as string);
+        return {
+          name: f.entityName as string,
+          kind: f.entityKind ?? "other",
+          mentions: g?.mentions ?? 0,
+          pageCount: g?.pageCount ?? 0,
+        };
+      });
+    if (gapEntities.length > 0) {
+      try {
+        const demand: DemandIntelOutput = await new DemandIntelAgent(search).run(rootCtx, {
+          siteUrl: run.input.siteUrl,
+          industry: profile.industry,
+          entities: gapEntities,
+        });
+        findings = applyDemand(findings, demand);
+      } catch (err) {
+        logger.warn("demand_failed_nonfatal", {
+          runId: run.id,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
 
     const plan = await new OrchestratorAgent().run(rootCtx, {
       siteUrl: run.input.siteUrl,

@@ -54,6 +54,7 @@ ${priorBlock}
    - "metadata": update the page/route's metadata mechanism (e.g. Next.js generateMetadata()/export const metadata, an Astro frontmatter <title>/<meta>, or the template's <head>).
    - "schema": add a JSON-LD <script type="application/ld+json"> in the appropriate component, layout, or template head. Use schema.org types appropriate to this business.
    - "locality_page": ONLY when local context is provided — create a new local landing page using the repo's routing convention (e.g. Next.js src/app/locations/[slug]/page.tsx, or the equivalent).
+   - "content_gap": create a new dedicated page (and internal links to it) for the entity named in the suggestion — the site already references it but has no page that owns the topic. Use the repo's routing convention, add relevant schema, and register it in the sitemap. Write genuine on-topic copy; do NOT fabricate facts/figures.
    - "internal_linking": add anchor links between related pages.
    - "image_optimization": use the framework's optimized image approach (e.g. next/image) or add proper width/height/lazy-loading to <img>.
    - "sitemap_robots": add a sitemap and robots file the way this framework expects (e.g. Next.js src/app/sitemap.ts + robots.ts, or public/sitemap.xml + public/robots.txt).

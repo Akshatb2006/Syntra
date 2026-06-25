@@ -1,7 +1,9 @@
 export type AgentName =
   | "orchestrator"
   | "crawl_seo"
+  | "site_understanding"
   | "geo_intel"
+  | "demand_intel"
   | "enrichment"
   | "code_mod"
   | "validation";

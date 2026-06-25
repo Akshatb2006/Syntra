@@ -8,9 +8,11 @@ import {
   type LighthouseRunOutput,
   type CrawlSiteInput,
   type LighthouseRunInput,
+  type SiteUnderstanding,
 } from "@growth/shared/types";
 import type { McpClientPort } from "@/core/ports/mcp.port";
 import type { SpanHandle } from "@/core/ports/tracer.port";
+import { SiteUnderstandingAgent } from "./site-understanding.agent";
 
 export interface CrawlSeoInput {
   siteUrl: string;
@@ -27,6 +29,12 @@ export interface CrawlSeoOutput {
   detectedLocalities: string[];
   /** Breakdown of crawled pages by type — the "Site Understanding" signal. */
   pageTypes: Array<{ type: string; count: number }>;
+  /**
+   * Business-aware understanding of the site: per-page classification, the
+   * entities it talks about, and detected content gaps. Drives the content_gap
+   * detector and the Site Understanding panel.
+   */
+  understanding: SiteUnderstanding;
   framework: string | null;
 }
 
@@ -143,7 +151,15 @@ Use the tools only if a specific page needs deeper inspection. Then produce the 
         maxRounds: 4,
       });
 
-      const pageTypes = this.classifyPageTypes(crawl);
+      // Business-aware site understanding (hybrid page classification + entity
+      // extraction + content-gap detection). Runs as its own sub-step; degrades
+      // to a deterministic classification on any failure.
+      const understanding = await new SiteUnderstandingAgent().run(
+        { ...ctx, parentSpan: span },
+        { siteUrl: input.siteUrl, crawl, profile: businessProfile },
+      );
+      const pageTypes = understanding.pageTypes;
+
       const output: CrawlSeoOutput = {
         crawl,
         baseline,
@@ -151,6 +167,7 @@ Use the tools only if a specific page needs deeper inspection. Then produce the 
         businessProfile,
         detectedLocalities,
         pageTypes,
+        understanding,
         framework: crawl.framework,
       };
       this.completeStep(ctx, step, {
@@ -159,6 +176,20 @@ Use the tools only if a specific page needs deeper inspection. Then produce the 
         businessProfile,
         pageTypes,
         localities: detectedLocalities,
+        // Compact understanding summary for the Site Understanding panel.
+        understanding: {
+          mode: understanding.mode,
+          taxonomy: understanding.taxonomy,
+          entities: understanding.entities.slice(0, 12).map((e) => ({
+            name: e.name,
+            kind: e.kind,
+            mentions: e.mentions,
+            pages: e.pages.length,
+            ownership: e.ownership,
+            coverageDepth: e.coverageDepth,
+          })),
+          contentGaps: understanding.contentGaps,
+        },
       });
       span.end({
         status: "ok",
@@ -257,39 +288,6 @@ Classify now. Output only the JSON object.`;
       },
       localities: [],
     };
-  }
-
-  /**
-   * Bucket crawled pages into types by URL path. Deterministic and free —
-   * gives accurate counts across ALL crawled pages (an LLM sample wouldn't),
-   * and powers the "Site Understanding" panel.
-   */
-  private classifyPageTypes(
-    crawl: CrawlSiteOutput,
-  ): Array<{ type: string; count: number }> {
-    const counts: Record<string, number> = {};
-    const bump = (t: string) => {
-      counts[t] = (counts[t] ?? 0) + 1;
-    };
-    for (const p of crawl.pages) {
-      let seg = "/";
-      try {
-        seg = new URL(p.url).pathname.toLowerCase().replace(/\/+$/, "");
-      } catch {
-        // keep default
-      }
-      if (seg === "" || seg === "/") bump("Homepage");
-      else if (/\/(blog|posts?|news|articles?)(\/|$)/.test(seg)) bump("Blog");
-      else if (/\/(docs?|documentation|guides?|help|support|kb)(\/|$)/.test(seg)) bump("Docs");
-      else if (/\/(pricing|plans?)(\/|$)/.test(seg)) bump("Pricing");
-      else if (/\/(products?|features?|solutions?|services?|listings?|shop|store|collections?)(\/|$)/.test(seg)) bump("Product");
-      else if (/\/(about|company|team|contact|careers?|jobs)(\/|$)/.test(seg)) bump("Company");
-      else if (/\/(faq|faqs)(\/|$)/.test(seg)) bump("FAQ");
-      else bump("Other");
-    }
-    return Object.entries(counts)
-      .map(([type, count]) => ({ type, count }))
-      .sort((a, b) => b.count - a.count);
   }
 
   private parseProfileJson(text: string): {

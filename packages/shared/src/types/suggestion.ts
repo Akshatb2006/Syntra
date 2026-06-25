@@ -3,12 +3,15 @@ export type SuggestionCategory =
   | "schema"
   | "internal_linking"
   | "locality_page"
+  | "content_gap"
   | "performance"
   | "image_optimization"
   | "content_quality"
   | "accessibility"
   | "structured_data"
   | "sitemap_robots";
+
+import type { DemandSignal } from "./demand.js";
 
 export type SuggestionImpact = "low" | "medium" | "high";
 export type SuggestionRisk = "low" | "medium" | "high";
@@ -21,7 +24,7 @@ export type SuggestionRisk = "low" | "medium" | "high";
  */
 export interface SuggestionEvidence {
   /** Which measurement produced this evidence. */
-  source: "crawl" | "lighthouse" | "geo";
+  source: "crawl" | "lighthouse" | "geo" | "demand";
   /** Human-readable, specific: e.g. "unused-javascript: 79 KiB potential savings". */
   detail: string;
   /** The page/URL the measurement was taken on, when applicable. */
@@ -60,6 +63,26 @@ export interface Finding {
   suggestedImplementation: string;
   /** Best-effort target files inferred from crawled routes. */
   targetFiles: string[];
+  /**
+   * For content_gap findings: the entity's coarse kind ("brand" | "location" |
+   * "product" | "integration" | "service"). Drives kind-aware confidence and
+   * score tiers — a commercial integration/brand gap is both more certain and
+   * more valuable than a noisy location mention. Undefined for non-gap findings.
+   */
+  entityKind?: string;
+  /**
+   * For content_gap findings: the exact entity name ("Bayut", "WhatsApp"). Lets
+   * the demand-validation step match a finding back to its observed demand signal
+   * without re-parsing the issue string. Undefined for non-gap findings.
+   */
+  entityName?: string;
+  /**
+   * Observed search demand for this entity, attached AFTER detection by the
+   * demand-validation step. Drives a baseScore modulation (high-demand gaps rise,
+   * regulatory/no-demand gaps sink) and is surfaced on the card. Undefined when
+   * demand validation didn't run or this isn't an entity gap.
+   */
+  demand?: DemandSignal;
   geoContext?: GeoSuggestionContext;
 }
 
@@ -95,6 +118,12 @@ export interface Suggestion {
   risk: SuggestionRisk;
   priorityScore: number;
   targetFiles: string[];
+  /**
+   * Observed search demand for a content-gap entity (band, score, competitor
+   * ownership). Lets the card show "is anyone searching for this?" next to the
+   * deficit. Undefined for non-gap suggestions or when demand validation is off.
+   */
+  demand?: DemandSignal;
   geoContext?: GeoSuggestionContext;
   status: SuggestionStatus;
   dispatchJobId: string | null;

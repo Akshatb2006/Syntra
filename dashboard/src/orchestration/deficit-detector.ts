@@ -25,7 +25,7 @@ import type { GeoIntelOutput } from "@/agents/geo-intel.agent";
  * Stamped onto every Run so historical audits stay reproducible and the set of
  * findings a run shows is traceable to the rules that were live when it ran.
  */
-export const DETECTOR_VERSION = "v1";
+export const DETECTOR_VERSION = "v4";
 
 export interface DetectorInput {
   crawl: CrawlSeoOutput;
@@ -50,6 +50,26 @@ const MAX_PER_DETECTOR = 5;
 const MIN_KIB_SAVINGS = 15;
 const MIN_MS_SAVINGS = 100;
 
+/**
+ * Per-entity-kind tiers for content-gap findings. `scoreWeight` dampens the
+ * priority seed (locations are noisy and over-mentioned, so they must rank below
+ * commercial entities even when they appear on many pages); `confFloor`/`confCap`
+ * set the confidence band (integration/product gaps are the most certain, location
+ * gaps the least). "service" covers discrete named programs (Compass's "Private
+ * Exclusives", "Compass Cares") — high-value, buildable, so it sits near brand.
+ */
+const GAP_KIND_TIER: Record<
+  string,
+  { scoreWeight: number; confFloor: number; confCap: number }
+> = {
+  integration: { scoreWeight: 1.0, confFloor: 0.86, confCap: 0.95 },
+  product: { scoreWeight: 1.0, confFloor: 0.86, confCap: 0.95 },
+  service: { scoreWeight: 0.97, confFloor: 0.8, confCap: 0.9 },
+  brand: { scoreWeight: 0.95, confFloor: 0.77, confCap: 0.9 },
+  location: { scoreWeight: 0.72, confFloor: 0.58, confCap: 0.75 },
+  other: { scoreWeight: 0.6, confFloor: 0.55, confCap: 0.7 },
+};
+
 export function detectDeficits(input: DetectorInput, detectedAt = Date.now()): Finding[] {
   const { crawl, geo, profile } = input;
   const pages = crawl.crawl.pages.filter((p) => p.status >= 200 && p.status < 400);
@@ -63,6 +83,7 @@ export function detectDeficits(input: DetectorInput, detectedAt = Date.now()): F
     ...detectAlt(pages, framework),
     ...detectSchema(pages, profile, framework),
     ...detectSitemapRobots(crawl),
+    ...detectContentGaps(crawl),
     ...detectLighthouse(crawl.baseline.url, crawl.baseline.diagnostics),
     ...detectLocalityPages(crawl, geo, profile),
   ];
@@ -72,7 +93,9 @@ export function detectDeficits(input: DetectorInput, detectedAt = Date.now()): F
   // (source + page + measurement + when + how-sure).
   const findings: Finding[] = drafts.map((d) => {
     for (const e of d.evidence) e.detectedAt = detectedAt;
-    return { ...d, confidence: confidenceFor(d) };
+    // Round to 2 dp so tiered confidences read as clean values (0.82, not
+    // 0.8200000000000001) wherever they surface.
+    return { ...d, confidence: Math.round(confidenceFor(d) * 100) / 100 };
   });
 
   // Stable highest-first ordering so the orchestrator sees the strongest
@@ -95,6 +118,17 @@ function confidenceFor(f: DraftFinding): number {
     // independent demand signal. 0 extra → score-only inference (weakest).
     const demandSignals = Math.max(0, f.evidence.length - 1);
     return Math.min(0.85, 0.6 + demandSignals * 0.06);
+  }
+  if (f.category === "content_gap") {
+    // Inferred from classification + measured mention frequency. The mention
+    // counts are facts, but "this should be a page" is a judgement — so it sits
+    // below direct DOM facts. Confidence is TIERED BY ENTITY KIND: a commercial
+    // integration/product/brand gap is far less noisy than a location mention
+    // (a location-based business mentions its city everywhere), so locations get
+    // a much lower band. Each extra evidence line nudges within the band.
+    const tier = GAP_KIND_TIER[f.entityKind ?? "other"] ?? GAP_KIND_TIER.other;
+    const extra = Math.max(0, f.evidence.length - 1);
+    return Math.min(tier.confCap, tier.confFloor + extra * 0.05);
   }
   // Lighthouse: measured, but an estimate/model — just below direct DOM facts.
   if (sources.has("lighthouse") && !sources.has("crawl")) return 0.95;
@@ -429,6 +463,96 @@ function detectSitemapRobots(crawl: CrawlSeoOutput): DraftFinding[] {
       suggestedImplementation:
         "Add robots rules that allow crawling and reference the sitemap.",
       targetFiles: ["src/app/robots.ts"],
+    });
+  }
+  return out;
+}
+
+// --- content-gap detector (entity coverage) -----------------------------
+
+/**
+ * Turn the Site Understanding layer's detected content gaps into findings. A gap
+ * is an entity the site leans on (mentioned across several pages) with no
+ * dedicated page — the strategic "missing asset" finding a human consultant
+ * surfaces and a hygiene-only audit never would. Evidence is MEASURED (mention
+ * counts + the pages the entity appears on); the "should be a page" judgement is
+ * what keeps confidence below direct DOM facts.
+ */
+function detectContentGaps(crawl: CrawlSeoOutput): DraftFinding[] {
+  const gaps = crawl.understanding?.contentGaps ?? [];
+  const fw = crawl.framework;
+  const out: DraftFinding[] = [];
+  for (const g of gaps) {
+    if (out.length >= MAX_PER_DETECTOR) break;
+    const spread = `${g.mentions}× across ${g.pageCount} crawled page${g.pageCount === 1 ? "" : "s"}`;
+
+    let issue: string;
+    let lead: string;
+    let suggestedTitle: string;
+    let suggestedImplementation: string;
+    let targetFiles: string[];
+    let risk: "low" | "medium";
+    let baseScore: number;
+
+    if (g.mode === "promote" && g.ownerPage) {
+      // A page already touches the topic but isn't its canonical owner.
+      issue = `${g.ownerPage} references "${g.entity}" but doesn't own the topic`;
+      lead = `"${g.entity}" (${g.kind}) is referenced ${spread}, but ${g.ownerPage} — the page closest to it — doesn't own the topic (its slug/title don't match the entity)`;
+      suggestedTitle = `Promote ${g.ownerPage} into the canonical "${g.entity}" page`;
+      suggestedImplementation = `Make ${g.ownerPage} the canonical owner of "${g.entity}": align its title, H1, URL and canonical to the entity, expand the copy to fully cover it, add relevant schema, and consolidate internal links to it. Do not create a competing page.`;
+      targetFiles = [routeToFile(g.ownerPage, fw), "src/app/sitemap.ts"];
+      risk = "low"; // editing an existing page is safer than shipping a new one
+      baseScore = Math.min(84, 56 + g.pageCount * 4 + Math.min(10, g.mentions));
+    } else if (g.mode === "expand" && g.ownerPage) {
+      // A dedicated page exists but its coverage is thin relative to demand.
+      issue = `Thin coverage of "${g.entity}" on ${g.ownerPage} despite ${g.pageCount}-page demand`;
+      lead = `"${g.entity}" (${g.kind}) is referenced ${spread}; ${g.ownerPage} owns it but its coverage is thin relative to that demand`;
+      suggestedTitle = `Expand "${g.entity}" coverage on ${g.ownerPage}`;
+      suggestedImplementation = `Deepen ${g.ownerPage} so it fully owns "${g.entity}": add supporting content (e.g. setup/migration guides, automation examples, case studies), FAQPage schema, and internal links from the ${g.pageCount} pages that already reference it.`;
+      targetFiles = [routeToFile(g.ownerPage, fw)];
+      risk = "low";
+      baseScore = Math.min(80, 54 + g.pageCount * 4 + Math.min(10, g.mentions));
+    } else {
+      // create (default): nothing owns the topic.
+      const slug = localitySlug(g.entity);
+      issue = `No dedicated page for "${g.entity}" despite ${g.pageCount}-page coverage`;
+      lead = `"${g.entity}" (${g.kind}) is referenced ${spread}, but no page is dedicated to it`;
+      suggestedTitle = `Create a dedicated "${g.entity}" page`;
+      suggestedImplementation = `Build a page (and internal links) targeting "${g.entity}" — the site already references it across ${g.pageCount} pages but has no page that owns the topic. Add relevant schema and register it in the sitemap.`;
+      targetFiles = [`src/app/${slug}/page.tsx`, "src/app/sitemap.ts"];
+      risk = "medium"; // creating a new page/cluster is higher-risk than a tweak
+      baseScore = Math.min(86, 58 + g.pageCount * 4 + Math.min(10, g.mentions));
+    }
+
+    const evidence: SuggestionEvidence[] = [ev("crawl", lead, crawl.crawl.rootUrl)];
+    if (g.samplePages.length > 0) {
+      evidence.push(ev("crawl", `appears on: ${g.samplePages.join(", ")}`));
+    }
+
+    // Tier by entity kind: dampen the priority seed so a noisy, over-mentioned
+    // location can't outrank a commercial brand/integration on page-count alone,
+    // and don't let a location claim "high" impact just because it's everywhere.
+    const tier = GAP_KIND_TIER[g.kind] ?? GAP_KIND_TIER.other;
+    baseScore = Math.round(baseScore * tier.scoreWeight);
+    const expectedImpact: SuggestionImpact =
+      g.kind === "location" || g.kind === "other"
+        ? "medium"
+        : g.pageCount >= 4
+          ? "high"
+          : "medium";
+
+    out.push({
+      category: "content_gap",
+      issue,
+      evidence,
+      expectedImpact,
+      risk,
+      baseScore,
+      suggestedTitle,
+      suggestedImplementation,
+      targetFiles,
+      entityKind: g.kind,
+      entityName: g.entity,
     });
   }
   return out;

@@ -30,8 +30,19 @@ export class AnthropicClient implements LlmPort {
     // Hand the SDK Node's native `fetch`. The SDK (0.32.1) otherwise uses a
     // bundled node-fetch shim that throws "Premature close" on Node 20+/22;
     // global undici fetch works reliably.
+    //
+    // maxRetries 6 (default is 2): the SDK already retries the right errors
+    // (429 / 5xx / 529 overloaded) with exponential backoff, but 2 attempts
+    // over ~2s isn't enough to ride out a sustained API-overload blip — and a
+    // throw in an unguarded agent call (e.g. the crawl audit narrative) sinks
+    // the whole run. More attempts spread over ~a minute keep transient 529s
+    // from failing an otherwise-good audit.
     if (!this.client)
-      this.client = new Anthropic({ apiKey: this.apiKey, fetch: globalThis.fetch });
+      this.client = new Anthropic({
+        apiKey: this.apiKey,
+        fetch: globalThis.fetch,
+        maxRetries: 6,
+      });
     return this.client;
   }
 

@@ -89,6 +89,12 @@ export interface CrawledPage {
   twitterTags: Record<string, string>;
   h1Count: number;
   h2Count: number;
+  /** Visible text of the page's <h1> elements (bounded). High-signal for page-type + entities. */
+  h1Text: string[];
+  /** Visible text of the page's <h2> elements (bounded). */
+  h2Text: string[];
+  /** Anchor text of the page's internal links (bounded). Where brand/location/product entities surface. */
+  linkTexts: string[];
   imagesMissingAlt: number;
   hasStructuredData: boolean;
   structuredDataTypes: string[];

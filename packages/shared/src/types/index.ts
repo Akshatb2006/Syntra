@@ -3,6 +3,8 @@ export * from "./business-profile.js";
 export * from "./agent.js";
 export * from "./trace.js";
 export * from "./suggestion.js";
+export * from "./demand.js";
+export * from "./site-understanding.js";
 export * from "./mcp-tools.js";
 export * from "./dispatch.js";
 export * from "./webhook.js";
