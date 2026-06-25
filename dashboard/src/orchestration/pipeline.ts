@@ -10,9 +10,15 @@ import { getSearch } from "@/infra/search/tavily.client";
 import { CrawlSeoAgent } from "@/agents/crawl-seo.agent";
 import { GeoIntelAgent, type GeoIntelOutput } from "@/agents/geo-intel.agent";
 import { DemandIntelAgent, type DemandIntelOutput } from "@/agents/demand-intel.agent";
+import {
+  CompetitorIntelAgent,
+  type CompetitorIntelOutput,
+} from "@/agents/competitor-intel.agent";
 import { OrchestratorAgent } from "@/agents/orchestrator.agent";
 import { detectDeficits, DETECTOR_VERSION } from "@/orchestration/deficit-detector";
 import { applyDemand } from "@/orchestration/demand";
+import { applyCompetitorIntel } from "@/orchestration/competitor";
+import type { CrawlSeoOutput } from "@/agents/crawl-seo.agent";
 
 /**
  * Version of the audit pipeline (crawl → evidence → findings → ranking) as a
@@ -69,6 +75,49 @@ export function parseRepoFullName(repoUrl: string): string {
   const m = /github\.com[:/]([\w.-]+)\/([\w.-]+?)(?:\.git)?(?:\/|$)/.exec(repoUrl);
   if (!m) throw new Error(`Unparseable GitHub repo URL: ${repoUrl}`);
   return `${m[1]}/${m[2]}`;
+}
+
+function dedupeStrings(arr: string[]): string[] {
+  return [...new Set(arr.map((s) => s.trim()).filter(Boolean))];
+}
+
+/**
+ * What the crawl shows the site already covers. `topics` is the human-readable
+ * list handed to the competitor agent (so it can judge "net-new"); `tokens` is a
+ * lowercased set used deterministically downstream to reject any competitor topic
+ * the site has in fact already filled — so a competitor gap is only surfaced when
+ * the site genuinely lacks the page.
+ */
+function buildSiteCoverage(crawl: CrawlSeoOutput): {
+  topics: string[];
+  tokens: Set<string>;
+} {
+  const u = crawl.understanding;
+  const entityNames = (u?.entities ?? []).map((e) => e.name);
+  const gapNames = (u?.contentGaps ?? []).map((g) => g.entity);
+  const taxonomy = u?.taxonomy ?? [];
+  const pageTypeNames = (crawl.pageTypes ?? []).map((p) => p.type);
+
+  const topics = dedupeStrings([...entityNames, ...gapNames, ...taxonomy]);
+
+  const tokens = new Set<string>();
+  for (const t of [...topics, ...pageTypeNames]) {
+    const v = t.trim().toLowerCase();
+    if (v) tokens.add(v);
+  }
+  // Crawled path segments — the strongest signal a topic already has a page.
+  for (const p of crawl.crawl.pages) {
+    try {
+      const path = new URL(p.url).pathname.toLowerCase();
+      for (const seg of path.split("/")) {
+        const s = seg.replace(/[^a-z0-9]+/g, " ").trim();
+        if (s.length >= 3) tokens.add(s);
+      }
+    } catch {
+      /* skip unparseable url */
+    }
+  }
+  return { topics, tokens };
 }
 
 export async function createRun(
@@ -244,9 +293,10 @@ async function runPipeline(run: Run): Promise<void> {
           pageCount: g?.pageCount ?? 0,
         };
       });
+    let demand: DemandIntelOutput = { byEntity: {} };
     if (gapEntities.length > 0) {
       try {
-        const demand: DemandIntelOutput = await new DemandIntelAgent(search).run(rootCtx, {
+        demand = await new DemandIntelAgent(search).run(rootCtx, {
           siteUrl: run.input.siteUrl,
           industry: profile.industry,
           entities: gapEntities,
@@ -258,6 +308,41 @@ async function runPipeline(run: Run): Promise<void> {
           error: err instanceof Error ? err.message : String(err),
         });
       }
+    }
+
+    // 4c. Competitor intelligence — observe the competitor set + the topics they
+    //     own dedicated pages for, then BOOST gaps competitors share and INJECT
+    //     net-new gaps the site doesn't cover at all ("competitors own X, you
+    //     don't"). Seeded by the competitor domains demand validation surfaced.
+    //     Non-fatal, like demand/geo.
+    const seedCompetitors = dedupeStrings(
+      Object.values(demand.byEntity ?? {}).flatMap((d) => d.competitorsOwning ?? []),
+    );
+    const coverage = buildSiteCoverage(crawl);
+    try {
+      const intel: CompetitorIntelOutput = await new CompetitorIntelAgent(search).run(
+        rootCtx,
+        {
+          siteUrl: run.input.siteUrl,
+          industry: profile.industry,
+          locationBased: profile.locationBased,
+          city,
+          seedCompetitors,
+          siteTopics: coverage.topics,
+        },
+      );
+      findings = applyCompetitorIntel(findings, intel, { tokens: coverage.tokens });
+      logger.info("competitor_intel_done", {
+        runId: run.id,
+        competitors: intel.competitors.length,
+        gaps: intel.gaps.length,
+        findings: findings.length,
+      });
+    } catch (err) {
+      logger.warn("competitor_failed_nonfatal", {
+        runId: run.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
 
     const plan = await new OrchestratorAgent().run(rootCtx, {

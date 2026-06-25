@@ -26,6 +26,11 @@ export const AGENTS: Record<AgentName, { displayName: string; model: string; des
     model: "claude-haiku-4-5",
     description: "Validates whether the entities a site mentions actually attract search demand — observing SERP presence, competitor ownership, and commercial vs regulatory intent so buildable gaps outrank dead ones.",
   },
+  competitor_intel: {
+    displayName: "Competitor Intelligence",
+    model: "claude-haiku-4-5",
+    description: "Observes the business's competitor set and the dedicated pages/topics they own — surfacing the gaps competitors have built and the target hasn't (including topics the site doesn't yet cover).",
+  },
   enrichment: {
     displayName: "Recommendation Enrichment",
     model: "claude-opus-4-7",
@@ -49,6 +54,7 @@ export const AGENT_ORDER: AgentName[] = [
   "site_understanding",
   "geo_intel",
   "demand_intel",
+  "competitor_intel",
   "enrichment",
   "code_mod",
   "validation",

@@ -4,6 +4,7 @@ export type AgentName =
   | "site_understanding"
   | "geo_intel"
   | "demand_intel"
+  | "competitor_intel"
   | "enrichment"
   | "code_mod"
   | "validation";

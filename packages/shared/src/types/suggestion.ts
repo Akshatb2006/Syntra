@@ -24,7 +24,7 @@ export type SuggestionRisk = "low" | "medium" | "high";
  */
 export interface SuggestionEvidence {
   /** Which measurement produced this evidence. */
-  source: "crawl" | "lighthouse" | "geo" | "demand";
+  source: "crawl" | "lighthouse" | "geo" | "demand" | "competitor";
   /** Human-readable, specific: e.g. "unused-javascript: 79 KiB potential savings". */
   detail: string;
   /** The page/URL the measurement was taken on, when applicable. */

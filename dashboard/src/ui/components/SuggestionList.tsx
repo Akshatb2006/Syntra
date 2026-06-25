@@ -33,6 +33,7 @@ const EVIDENCE_SOURCE_LABEL: Record<SuggestionEvidence["source"], string> = {
   lighthouse: "LIGHTHOUSE",
   geo: "GEO",
   demand: "DEMAND",
+  competitor: "COMPETITOR",
 };
 
 function pagePath(url?: string): string | null {
