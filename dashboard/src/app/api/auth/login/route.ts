@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 /** Kick off Google OAuth: set a CSRF `state` cookie and redirect to consent. */
 export async function GET() {
   if (!env.googleConfigured) {
-    return NextResponse.redirect(`${env.authUrl}/login?error=google_unconfigured`);
+    return NextResponse.redirect(`${env.authUrl}/?authError=google_unconfigured`);
   }
   const state = crypto.randomUUID();
   const res = NextResponse.redirect(googleConsentUrl(state));

@@ -47,7 +47,8 @@ export function HeroAuditForm() {
         }),
       });
       if (res.status === 401) {
-        router.push("/login");
+        // Session lapsed — reload so the sign-in gate reappears over the dashboard.
+        window.location.href = "/";
         return;
       }
       const json = await res.json();

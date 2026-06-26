@@ -1,23 +1,25 @@
 # Syntra: Autonomous Growth Engineer
 
-> Multi-agent autonomous SEO/growth pipeline for real-estate Next.js websites.
-> A run = audit → research → plan → modify (via Claude Code over MCP) → preview
-> deploy → validate, all unattended, with a verifiable trace tree.
+> Multi-agent autonomous SEO/growth pipeline for Next.js websites in **any
+> industry**. A run = audit → research → plan → modify (via Claude Code over
+> MCP) → preview deploy → validate, all unattended, with a verifiable trace
+> tree. (A deliberately-broken real-estate site, Bangalore Homes, ships as the
+> demo target.)
 
 ## Problem Statement
 
-Real estate websites often struggle to maintain organic visibility because SEO optimization is a manual, tedious, and continuous process. Technical audits, local keyword research (like neighborhood-specific terms), content planning, and actual code implementation require specialized knowledge and significant developer time. As a result, many sites fall behind on best practices, losing potential leads to better-optimized competitors.
+Most websites struggle to maintain organic visibility because SEO is a manual, tedious, continuous process. Technical audits, keyword and search-demand research, content planning, and actual code implementation require specialized knowledge and significant developer time — so sites fall behind best practices and lose traffic to better-optimized competitors. This holds across industries: a local real-estate agency, a SaaS product, a clinic, and an e-commerce store all face the same grind.
 
 ## Our Solution
 
-Syntra automates the entire SEO lifecycle using a multi-agent system. It provides an autonomous pipeline that:
+Syntra automates the entire SEO lifecycle using a multi-agent system. It first **detects what kind of business a site is**, then runs an autonomous pipeline that:
 1. **Audits** the site using Lighthouse and custom crawlers.
-2. **Researches** hyper-local keywords using real-time search.
-3. **Plans** technical and content improvements.
-4. **Modifies** the codebase autonomously (opening PRs).
+2. **Researches** keywords, search demand, and competitor coverage in real time.
+3. **Plans** technical and content improvements, ranked by opportunity.
+4. **Modifies** the codebase autonomously (opening PRs via Claude Code).
 5. **Validates** the changes against preview deployments.
 
-By coordinating specialized AI agents, Syntra acts as an always-on growth engineer, ensuring your Next.js real estate site continuously improves its search engine ranking and user experience with zero manual intervention.
+By coordinating specialized, business-aware AI agents, Syntra acts as an always-on growth engineer for a Next.js site in any industry — continuously improving its search ranking and user experience with zero manual intervention.
 
 ## What this is
 
@@ -29,7 +31,7 @@ A two-process system designed for collaboration across two laptops:
 │                                      │         │                                      │
 │  mcp-server  (Express + MCP SDK)     │ <─────  │  dashboard  (Next.js 15 + agents)    │
 │   /mcp        (MCP tools)            │  HTTP   │   ports/adapters core                │
-│   /dispatch   (Claude Code subprocess)│  +SSE  │   5 agents (Opus/Sonnet)             │
+│   /dispatch   (Claude Code subprocess)│  +SSE  │   10 agents (Opus/Sonnet/Haiku)      │
 │   /webhooks   (GitHub + Vercel)      │         │   SQLite store                       │
 │   /events     (SSE event bus)        │         │   Composite tracer (Console+SQLite   │
 │                                      │         │     +Omium)                          │
@@ -61,10 +63,13 @@ mcp-server/                  TypeScript MCP server (your laptop)
 
 dashboard/                   Next.js 15 + Tailwind v4 (friend's laptop)
   src/
-    app/                     pages + API routes
+    app/                     pages (landing + auth + onboarding) + API routes
     core/                    framework-free domain (entities + ports)
       ports/                 Tracer, LLM, MCP, Store, Search, EventBus
-    agents/                  Orchestrator, Crawl/SEO, Geo Intel, Code Mod, Validation
+    agents/                  Orchestrator, Crawl/SEO, Site Understanding, Geo Intel,
+                             Demand Intel, Competitor Intel, Enrichment, Blueprint,
+                             Code Mod, Validation
+    lib/auth/                Google OAuth, signed sessions, per-user guard
     infra/                   port implementations
       tracer/                Console + SQLite + Omium + Composite
       llm/                   Anthropic SDK
@@ -88,7 +93,8 @@ reference/apartmenthub-mcp/  pattern source only (do not extend)
 
 ### Prereqs (both laptops)
 
-- Node 20+ and `pnpm`
+- **Node 22 (LTS)** and `pnpm` — pin to 22; `better-sqlite3`'s native build does
+  not yet support Node 26 (`brew install node@22`, or `nvm use 22`)
 - `claude` (Claude Code CLI) — `your laptop only`, used by the dispatcher
 - `cloudflared` — your laptop, to expose the MCP server
 
@@ -121,6 +127,11 @@ cp .env.example .env
 # Required for the dashboard operator:
 #   MCP_BASE_URL=https://<tunnel-url>
 #   MCP_BEARER_TOKEN=tok_friend       (matches VALID_TOKENS on the MCP)
+# Auth (sign-in gate on the landing page):
+#   AUTH_URL=http://localhost:3000       (base URL; used to build the OAuth redirect)
+#   AUTH_SECRET=<openssl rand -hex 32>   (HMAC key for signed session cookies)
+#   GOOGLE_CLIENT_ID=…, GOOGLE_CLIENT_SECRET=…   (Google OAuth client)
+#   DEV_LOGIN=1                          (local-only bypass — MUST be unset in prod)
 # Optional platform-wide fallbacks (otherwise each user supplies via /connect):
 #   ANTHROPIC_API_KEY=sk-…
 #   TAVILY_API_KEY=tvly-…
@@ -146,17 +157,34 @@ The `/connect` form collects:
 Credentials are encrypted at rest (AES-256-GCM, keyed by `SECRETS_ENC_KEY`)
 and referenced from each run by an opaque credentialsRef.
 
+### Authentication & access
+
+The dashboard opens on a branded landing page at `/`. Signed-out visitors see it
+behind a blur gate; **Google sign-in** is the only way in (zero-dependency
+OAuth + HMAC-signed session cookies via Web Crypto). First sign-in routes
+through a short `/onboarding` step. Every run is **isolated per user** — you only
+ever see your own runs.
+
+For local development without Google credentials, set `DEV_LOGIN=1` to enable a
+bypass: the landing page shows a "Skip — continue without Google" button (and
+`/api/auth/dev?email=you@test.com` signs in as any email, so you can test
+per-user isolation). The bypass route hard-404s unless `DEV_LOGIN` is set —
+**keep it unset in production.**
+
 Run flow:
 
-1. `/connect` — verifies MCP reachability, collects credentials, returns a credentialsRef.
-2. `/runs/new` — site URL + GitHub repo URL + optional primary city.
-3. `/runs/[id]` — live agent timeline, trace tree, suggestions. When the PR
+1. **Sign in** at `/` (Google, or the dev bypass) → first time, complete `/onboarding`.
+2. **Hero audit box** — paste a URL on the landing page for an audit-only run
+   (no credentials needed); it drops you straight onto the live results page.
+3. `/connect` — when you choose to implement a fix, verify MCP reachability and
+   add a GitHub PAT (returns a credentialsRef).
+4. `/runs/[id]` — live agent timeline, trace tree, suggestions. When the PR
    opens and the Vercel preview is ready, the Validation agent re-runs
    Lighthouse and the before/after delta appears.
 
 ### Step 3 — demo target
 
-If you don't have a real-estate Next.js repo:
+If you don't have a Next.js repo to point at (any industry works):
 
 ```bash
 cd demo-site
@@ -197,7 +225,7 @@ integration time and adjust `OmiumTransport.flush()` if needed.
 
 | Axis | How |
 |---|---|
-| Multi-agent | 5 distinct agents with separated responsibilities, prompts, models, and tool surfaces. |
+| Multi-agent | 10 distinct, business-aware agents with separated responsibilities, prompts, models (Opus/Sonnet/Haiku), and tool surfaces. |
 | Autonomy | A single click runs audit → research → plan → modify (Claude Code) → wait for preview → validate, with retries baked in. |
 | Long-running | Pipeline can run for ~15min per Claude Code dispatch; SSE event stream keeps the UI live; SQLite survives restarts. |
 | Tool calling | MCP exposes 12+ tools; agents call them via a typed HTTP client. |

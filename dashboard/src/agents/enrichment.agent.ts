@@ -1,6 +1,7 @@
 import { BaseAgent, type AgentContext, type ToolDef } from "./base";
 import type { SpanHandle } from "@/core/ports/tracer.port";
 import { AGENTS } from "@growth/shared/constants";
+import { modelFor } from "@/lib/models";
 import type { BusinessProfile, Suggestion } from "@growth/shared/types";
 
 export interface EnrichmentInput {
@@ -37,7 +38,7 @@ export interface EnrichmentOutput {
 export class EnrichmentAgent extends BaseAgent<EnrichmentInput, EnrichmentOutput> {
   readonly name = "enrichment" as const;
   readonly title = AGENTS.enrichment.displayName;
-  readonly model = AGENTS.enrichment.model;
+  readonly model = modelFor("enrichment");
 
   async run(ctx: AgentContext, input: EnrichmentInput): Promise<EnrichmentOutput> {
     const span = ctx.tracer.startSpan({

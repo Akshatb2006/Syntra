@@ -80,6 +80,6 @@ export const usersRepo: UsersRepoPort = {
       .prepare(
         "UPDATE users SET company = ?, website = ?, role = ?, onboarded = 1 WHERE id = ?",
       )
-      .run(company, website, role, id);
+      .run(company, website ?? null, role, id);
   },
 };

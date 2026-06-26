@@ -1,6 +1,7 @@
 import { BaseAgent, type AgentContext, type ToolDef } from "./base";
 import type { SpanHandle } from "@/core/ports/tracer.port";
 import { AGENTS } from "@growth/shared/constants";
+import { modelFor } from "@/lib/models";
 import type { BusinessProfile, Finding, Suggestion } from "@growth/shared/types";
 import { newId } from "@/lib/id";
 import type { CrawlSeoOutput } from "./crawl-seo.agent";
@@ -139,7 +140,7 @@ function familyBreakdown(report: Suggestion[]): Record<Family, number> {
 export class OrchestratorAgent extends BaseAgent<OrchestratorInput, OrchestratorOutput> {
   readonly name = "orchestrator" as const;
   readonly title = AGENTS.orchestrator.displayName;
-  readonly model = AGENTS.orchestrator.model;
+  readonly model = modelFor("orchestrator");
 
   async run(ctx: AgentContext, input: OrchestratorInput): Promise<OrchestratorOutput> {
     const span = ctx.tracer.startSpan({

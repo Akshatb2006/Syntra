@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function signOut() {
-  const res = NextResponse.redirect(`${env.authUrl}/login`);
+  const res = NextResponse.redirect(`${env.authUrl}/`);
   res.cookies.delete(SESSION_COOKIE);
   return res;
 }

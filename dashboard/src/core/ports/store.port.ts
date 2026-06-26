@@ -26,7 +26,7 @@ export interface UsersRepoPort {
   get(id: string): User | undefined;
   getByEmail(email: string): User | undefined;
   /** Save onboarding answers and flip `onboarded` to true. */
-  setOnboarding(id: string, fields: { company: string; website: string; role: string }): void;
+  setOnboarding(id: string, fields: { company: string; website?: string | null; role: string }): void;
 }
 
 export interface RunsRepoPort {

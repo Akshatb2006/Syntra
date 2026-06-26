@@ -11,16 +11,17 @@ const ROLES = ["Founder", "Agency", "Marketing", "SEO", "Developer", "Other"] as
 async function saveOnboarding(formData: FormData) {
   "use server";
   const session = await getSession();
-  if (!session) redirect("/login");
+  if (!session) redirect("/");
 
   const company = String(formData.get("company") ?? "").trim();
-  const website = String(formData.get("website") ?? "").trim();
   const role = String(formData.get("role") ?? "").trim();
-  if (!company || !website || !role) {
+  if (!company || !role) {
     redirect("/onboarding?error=1");
   }
 
-  sqliteStore.users.setOnboarding(session.uid, { company, website, role });
+  // Website is captured at analysis time (the URL they paste to audit), so we
+  // don't ask for it here.
+  sqliteStore.users.setOnboarding(session.uid, { company, role });
   // Re-issue the session cookie so middleware sees onboarding as complete.
   await setSession({ uid: session.uid, email: session.email, name: session.name, onb: true });
   redirect("/");
@@ -32,7 +33,7 @@ export default async function OnboardingPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const session = await getSession();
-  if (!session) redirect("/login");
+  if (!session) redirect("/");
   const { error } = await searchParams;
 
   return (
@@ -72,15 +73,12 @@ export default async function OnboardingPage({
               marginBottom: 16,
             }}
           >
-            Please fill in your company, website, and pick what best describes you.
+            Please fill in your company and pick what best describes you.
           </div>
         )}
 
         <label style={labelStyle}>Company name</label>
         <input name="company" required placeholder="Acme Inc." style={inputStyle} />
-
-        <label style={labelStyle}>Website</label>
-        <input name="website" required type="text" inputMode="url" placeholder="acme.com" style={inputStyle} />
 
         <label style={{ ...labelStyle, marginBottom: 10 }}>What best describes you?</label>
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>

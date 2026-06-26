@@ -3,7 +3,10 @@ import type { AgentName } from "../types/agent.js";
 export const AGENTS: Record<AgentName, { displayName: string; model: string; description: string }> = {
   orchestrator: {
     displayName: "Orchestrator",
-    model: "claude-opus-4-7",
+    // Phrasing-only pass (scoring is deterministic), so it runs on Sonnet for
+    // ~2x speed and a large cost cut vs Opus. Override per-agent via the
+    // ORCHESTRATOR_MODEL env var (see lib/models.ts) to flip back to Opus.
+    model: "claude-sonnet-4-6",
     description: "Plans the run, decomposes work, dispatches sub-agents, decides completion.",
   },
   crawl_seo: {
@@ -33,12 +36,16 @@ export const AGENTS: Record<AgentName, { displayName: string; model: string; des
   },
   enrichment: {
     displayName: "Recommendation Enrichment",
-    model: "claude-opus-4-7",
+    // Explanation/phrasing over already-detected deficits — Sonnet is plenty.
+    // Override via ENRICHMENT_MODEL to restore Opus.
+    model: "claude-sonnet-4-6",
     description: "Explains each detected deficit for THIS business — why it matters and the outcome it affects. Cannot invent findings.",
   },
   blueprint: {
     displayName: "Page Blueprint",
-    model: "claude-opus-4-7",
+    // Outlines a buildable gap from grounded signals — Sonnet handles this.
+    // Override via BLUEPRINT_MODEL to restore Opus.
+    model: "claude-sonnet-4-6",
     description: "Turns a buildable content gap into an executable page outline — title, section structure, and target keyword cluster — grounded by the gap's demand and competitor signals.",
   },
   code_mod: {

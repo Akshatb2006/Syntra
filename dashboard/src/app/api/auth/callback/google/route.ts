@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
 
   // CSRF: the state we round-tripped through Google must match our cookie.
   if (!code || !state || !cookieState || state !== cookieState) {
-    return NextResponse.redirect(`${env.authUrl}/login?error=oauth_state`);
+    return NextResponse.redirect(`${env.authUrl}/?authError=oauth_state`);
   }
 
   try {
@@ -41,6 +41,6 @@ export async function GET(req: NextRequest) {
     logger.error("google_callback_failed", {
       error: err instanceof Error ? err.message : String(err),
     });
-    return NextResponse.redirect(`${env.authUrl}/login?error=oauth_failed`);
+    return NextResponse.redirect(`${env.authUrl}/?authError=oauth_failed`);
   }
 }

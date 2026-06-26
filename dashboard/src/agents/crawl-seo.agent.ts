@@ -144,11 +144,16 @@ ${JSON.stringify(baseline, null, 2).slice(0, 8000)}
 
 Use the tools only if a specific page needs deeper inspection. Then produce the audit narrative.`;
 
+      // 2 rounds is enough for one optional page/Lighthouse drill-down before
+      // the narrative. The deficits are detected deterministically downstream,
+      // so extra tool rounds here (each a Lighthouse rerun / crawl) mostly added
+      // latency without changing the audit. Bump back to 4 if narrative quality
+      // regresses.
       const { text: auditNarrative } = await this.toolLoop(ctx, span, {
         system,
         userPrompt,
         tools,
-        maxRounds: 4,
+        maxRounds: 2,
       });
 
       // Business-aware site understanding (hybrid page classification + entity
