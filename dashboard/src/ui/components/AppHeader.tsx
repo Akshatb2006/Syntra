@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { LockedFeature } from "./LockedFeature";
 
 export function AppHeader() {
   const pathname = usePathname();
@@ -11,13 +12,13 @@ export function AppHeader() {
   return (
     <header className="header">
       <div className="header-brand">
-        <div className="brand-mark">S</div>
+        <img className="brand-mark" src="/syntra-logo.png" alt="Syntra logo" />
         <div className="brand-text">Syntra</div>
       </div>
       <nav className="nav">
         <Link href="/" className={pathname === "/" ? "current" : ""}>Dashboard</Link>
         <Link href="/runs" className={pathname === "/runs" ? "current" : ""}>Runs</Link>
-        <Link href="/connect" className={pathname === "/connect" ? "current" : ""}>Connect</Link>
+        <LockedFeature label="Connect" variant="nav" align="center" />
         <a href="/api/auth/logout" className="nav-signout">Sign out</a>
       </nav>
 

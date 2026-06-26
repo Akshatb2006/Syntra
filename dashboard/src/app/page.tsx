@@ -1,6 +1,13 @@
 import Link from "next/link";
 import { HeroAuditForm } from "@/ui/components/HeroAuditForm";
+import { AuthGate } from "@/ui/components/AuthGate";
+import { ThemeToggle } from "@/ui/components/ThemeToggle";
+import { LandingMotion } from "@/ui/components/LandingMotion";
+import { StartTrialButton } from "@/ui/components/StartTrialButton";
+import { getSession } from "@/lib/auth/server";
 import "./landing.css";
+
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Syntra — The autonomous SEO engineer that ships pull requests",
@@ -8,14 +15,27 @@ export const metadata = {
     "Syntra crawls your site, plans the highest-impact SEO improvements, and opens real pull requests against your repo — for any industry. Watch it work in real time.",
 };
 
-export default function LandingPage() {
+export default async function LandingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ authError?: string }>;
+}) {
+  const session = await getSession();
+  const authed = !!session;
+  const { authError } = await searchParams;
+
   return (
-    <div className="syntra-landing">
+    <>
+    {authed && <LandingMotion />}
+    <div className={`syntra-landing${authed ? "" : " is-gated"}`} aria-hidden={!authed}>
+      {/* Continuous ambient backdrop — drifts behind the whole page */}
+      <div className="lp-ambient" aria-hidden />
+
       {/* NAV */}
       <nav className="lp-nav">
         <div className="container nav-inner">
           <div className="lp-brand">
-            <div className="lp-brand-mark">S</div>
+            <img className="lp-brand-mark" src="/syntra-logo.png" alt="Syntra logo" />
             <div className="lp-brand-text">Syntra</div>
           </div>
           <div className="nav-links">
@@ -23,17 +43,21 @@ export default function LandingPage() {
             <a href="#proof">Proof</a>
             <a href="#devs">For developers</a>
             <a href="#faq">FAQ</a>
-            <Link className="nav-cta" href="/runs">
+            <ThemeToggle />
+            <StartTrialButton className="nav-cta">
               Start a free run <span style={{ fontSize: 11 }}>→</span>
-            </Link>
+            </StartTrialButton>
           </div>
         </div>
       </nav>
 
       {/* HERO */}
       <header className="hero" id="top">
+        <div className="hero-aurora" />
         <div className="hero-grid-bg" />
+        <div className="hero-spotlight" aria-hidden />
         <div className="container hero-inner">
+          <div className="hero-copy">
           <div className="eyebrow">
             <span className="dot" />
             Detect → Plan → Implement → Validate
@@ -60,8 +84,10 @@ export default function LandingPage() {
             <span className="row"><span className="check">✓</span> Every change is a reviewable PR</span>
             <span className="row"><span className="check">✓</span> First run free, no credit card</span>
           </div>
+          </div>
 
-          {/* HERO PREVIEW */}
+          {/* HERO PREVIEW — the product shot, right column */}
+          <div className="hero-preview-tilt">
           <div className="hero-preview">
             <div className="preview-bar">
               <div className="dot" />
@@ -265,12 +291,13 @@ export default function LandingPage() {
               </aside>
             </div>
           </div>
+          </div>
         </div>
       </header>
 
       {/* TRUST STRIP */}
       <section className="trust">
-        <div className="container">
+        <div className="container" data-reveal>
           <div className="trust-label">Built on tools you already trust</div>
           <div className="trust-row">
             <span>Next.js</span>
@@ -291,7 +318,7 @@ export default function LandingPage() {
       {/* WHAT IT DOES */}
       <section className="lp-section" id="how">
         <div className="container">
-          <div style={{ maxWidth: 760, marginBottom: 56 }}>
+          <div style={{ maxWidth: 760, marginBottom: 56 }} data-reveal>
             <span className="lp-section-eyebrow">What it does</span>
             <h2 className="lp-section-title">Five agents. One pull request at a time.</h2>
             <p className="lp-section-sub">
@@ -301,7 +328,7 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="pipeline">
+          <div className="pipeline" data-reveal-children>
             <div className="pipe-step">
               <div className="pipe-num">01</div>
               <h3>Crawl</h3>
@@ -338,14 +365,14 @@ export default function LandingPage() {
       {/* BENEFITS */}
       <section className="lp-section" style={{ paddingTop: 0 }}>
         <div className="container">
-          <div style={{ maxWidth: 760, marginBottom: 56 }}>
+          <div style={{ maxWidth: 760, marginBottom: 56 }} data-reveal>
             <span className="lp-section-eyebrow">Why teams run it</span>
             <h2 className="lp-section-title">
               Get found by the people searching for you — without hiring an SEO team.
             </h2>
           </div>
 
-          <div className="benefits">
+          <div className="benefits" data-reveal-children>
             <div className="benefit">
               <div className="benefit-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -406,7 +433,7 @@ export default function LandingPage() {
       {/* PROOF */}
       <section className="lp-section proof-section" id="proof">
         <div className="container">
-          <div style={{ maxWidth: 760 }}>
+          <div style={{ maxWidth: 760 }} data-reveal>
             <span className="lp-section-eyebrow">How a run looks</span>
             <h2 className="lp-section-title">
               From &quot;needs work&quot; to &quot;good in every category&quot; — in one run.
@@ -418,7 +445,7 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="proof-card" style={{ marginTop: 8 }}>
+          <div className="proof-card" style={{ marginTop: 8 }} data-reveal>
             <div
               style={{
                 display: "flex",
@@ -469,7 +496,7 @@ export default function LandingPage() {
       {/* DEV SECTION */}
       <section className="dev-section" id="devs">
         <div className="container">
-          <div className="dev-grid">
+          <div className="dev-grid" data-reveal-children>
             <div>
               <span className="lp-section-eyebrow">For developers</span>
               <h2 className="lp-section-title" style={{ fontSize: 38 }}>
@@ -549,13 +576,13 @@ export default function LandingPage() {
       {/* FLOW */}
       <section className="flow-section">
         <div className="container">
-          <div style={{ maxWidth: 760 }}>
+          <div style={{ maxWidth: 760 }} data-reveal>
             <span className="lp-section-eyebrow">A run, end to end</span>
             <h2 className="lp-section-title">
               Five minutes. Four agents. One you-approved PR.
             </h2>
           </div>
-          <div className="flow">
+          <div className="flow" data-reveal-children>
             <div className="flow-step">
               <div className="num">— 01</div>
               <h3>Point it at your site</h3>
@@ -628,9 +655,9 @@ export default function LandingPage() {
       <section className="faq-section" id="faq">
         <div className="container">
           <span className="lp-section-eyebrow">FAQ</span>
-          <h2 className="lp-section-title">Questions you&apos;d be smart to ask.</h2>
+          <h2 className="lp-section-title" data-reveal>Questions you&apos;d be smart to ask.</h2>
 
-          <div className="faq-list">
+          <div className="faq-list" data-reveal-children>
             <details className="faq-item">
               <summary className="faq-q">
                 Will it push code to my repo without me approving?
@@ -715,14 +742,15 @@ export default function LandingPage() {
 
       {/* CTA BAND */}
       <section className="cta-band" id="start">
-        <div className="container cta-band-inner">
+        <div className="hero-aurora" />
+        <div className="container cta-band-inner" data-reveal>
           <h2>Run it on your site. See what changes.</h2>
           <p>
             First run is free. No card required. About five minutes from &quot;paste
             URL&quot; to a Lighthouse-validated pull request waiting in GitHub.
           </p>
           <div className="ctas">
-            <a className="lp-btn lp-btn-primary" href="#top">
+            <a className="lp-btn lp-btn-primary" href="#top" data-magnetic>
               Analyze my site <span className="ext">→</span>
             </a>
             <a className="lp-btn lp-btn-secondary" href="#how">
@@ -738,7 +766,7 @@ export default function LandingPage() {
           <div className="foot-grid">
             <div className="foot-brand">
               <div className="lp-brand">
-                <div className="lp-brand-mark">S</div>
+                <img className="lp-brand-mark" src="/syntra-logo.png" alt="Syntra logo" />
                 <div className="lp-brand-text">Syntra</div>
               </div>
               <p>
@@ -799,5 +827,7 @@ export default function LandingPage() {
         </div>
       </footer>
     </div>
+    {!authed && <AuthGate error={authError} />}
+    </>
   );
 }

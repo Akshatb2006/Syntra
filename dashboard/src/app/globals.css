@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;450;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root,
 html[data-theme="dark"] {
@@ -157,18 +157,12 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
   margin-right: 8px;
 }
 .brand-mark {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  background: var(--fg);
-  color: var(--bg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  font-size: 18px;
-  letter-spacing: -0.02em;
+  height: 32px;
+  width: auto;
+  object-fit: contain;
+  display: block;
 }
+[data-theme="dark"] .brand-mark { filter: invert(1); }
 .brand-text { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
 .nav { display: flex; gap: 6px; }
 .nav button, .nav a {
@@ -182,6 +176,40 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 }
 .nav button:hover, .nav a:hover { color: var(--fg); background: var(--surface-2); text-decoration: none; }
 .nav button.current, .nav a.current { color: var(--fg); background: var(--surface-2); }
+
+/* Free-trial: a control that's present but intentionally locked. */
+.locked-wrap { position: relative; display: inline-flex; }
+.locked-wrap > button[aria-disabled="true"] { cursor: not-allowed; opacity: 0.55; }
+.locked-inline {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+.locked-tip {
+  position: absolute;
+  top: calc(100% + 8px);
+  background: var(--fg);
+  color: var(--bg);
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-3px);
+  transition: opacity 0.14s, transform 0.14s;
+  z-index: 50;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.22);
+}
+.locked-tip-center { left: 50%; transform: translateX(-50%) translateY(-3px); }
+.locked-tip-left { left: 0; }
+.locked-tip.show { opacity: 1; }
+.locked-tip-center.show { transform: translateX(-50%) translateY(0); }
+.locked-tip-left.show { transform: translateY(0); }
 .header-spacer { flex: 1; }
 .divider-v { width: 1px; height: 22px; background: var(--border); }
 .theme-toggle {
