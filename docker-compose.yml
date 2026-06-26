@@ -1,0 +1,41 @@
+# Dashboard-only alpha — single VM (e.g. Oracle Cloud Always Free) + Docker.
+# Two containers: the Next.js dashboard and a Caddy reverse proxy that gets
+# automatic HTTPS from Let's Encrypt (required: Google OAuth + secure cookies
+# need a real https domain). Set DOMAIN in ./.env (see .env.deploy.example).
+#
+#   cp .env.deploy.example .env        # set DOMAIN=app.yourdomain.com
+#   cp dashboard/.env.example dashboard/.env && edit it (AUTH_URL, secrets…)
+#   docker compose up -d --build
+services:
+  dashboard:
+    build:
+      context: .
+      dockerfile: dashboard/Dockerfile
+    env_file: ./dashboard/.env          # AUTH_URL, AUTH_SECRET, GOOGLE_*, etc.
+    environment:
+      NODE_ENV: production
+      SQLITE_PATH: /data/growth-engineer.db   # persistent — survives redeploys
+    volumes:
+      - db-data:/data
+    expose:
+      - "3000"                          # internal only; Caddy fronts it
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    depends_on: [dashboard]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in ./.env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data                # cert storage — keep it persistent
+      - caddy-config:/config
+    restart: unless-stopped
+
+volumes:
+  db-data:        # Syntra SQLite (users, runs, suggestions, encrypted secrets)
+  caddy-data:     # Let's Encrypt certs
+  caddy-config:
