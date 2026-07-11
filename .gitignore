@@ -12,6 +12,10 @@ build
 .env.*.local
 !.env.example
 
+# secrets / SSH keys — never commit
+*.pem
+*.key
+
 # logs
 logs
 *.log
