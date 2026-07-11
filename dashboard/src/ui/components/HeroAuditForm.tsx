@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { SignInPromptModal } from "./SignInPromptModal";
 
 /**
  * The value-first entry point: paste a URL, get an audit. No GitHub, no
@@ -24,6 +25,9 @@ export function HeroAuditForm({
   const [url, setUrl] = useState(pendingAudit ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // When set, the "sign in with Google to run your audit" modal is shown for
+  // this URL (signed-out visitors who clicked Analyze).
+  const [signInFor, setSignInFor] = useState<string | null>(null);
 
   function normalize(raw: string): string | null {
     let s = raw.trim();
@@ -81,8 +85,8 @@ export function HeroAuditForm({
       return;
     }
     if (!authed) {
-      // Not signed in yet — this click is what triggers sign-in.
-      toSignIn(siteUrl);
+      // Not signed in yet — surface the branded sign-in modal for this URL.
+      setSignInFor(siteUrl);
       return;
     }
     await startAudit(siteUrl);
@@ -126,6 +130,9 @@ export function HeroAuditForm({
             ? "Paste your URL — a real audit in a couple of minutes."
             : "Paste your URL — sign in and we’ll run a real audit in minutes."}
         </div>
+      )}
+      {signInFor && (
+        <SignInPromptModal siteUrl={signInFor} onClose={() => setSignInFor(null)} />
       )}
     </form>
   );

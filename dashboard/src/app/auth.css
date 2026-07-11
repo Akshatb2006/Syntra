@@ -360,3 +360,25 @@
   color: var(--fg-dim);
 }
 
+
+/* Close (×) button for the Analyze sign-in prompt modal. */
+.auth-gate-card { position: relative; }
+.auth-gate-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-size: 21px;
+  line-height: 1;
+  color: var(--fg-muted);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.auth-gate-close:hover { background: var(--surface-2); color: var(--fg); }
+.auth-gate-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
