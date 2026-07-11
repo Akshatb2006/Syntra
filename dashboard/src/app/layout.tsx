@@ -25,10 +25,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body>
         <script
           dangerouslySetInnerHTML={{
-            // Pre-paint theme resolution (no flash): explicit choice wins,
-            // otherwise follow the OS preference, otherwise light.
+            // Pre-paint theme resolution (no flash): a saved choice wins,
+            // otherwise default to light — we intentionally ignore the OS
+            // preference so first-time visitors always land on the light theme.
             __html:
-              "try{var t=localStorage.getItem('syntra-theme');if(t!=='dark'&&t!=='light'){t=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}document.documentElement.dataset.theme=t}catch{document.documentElement.dataset.theme='light'}",
+              "try{var t=localStorage.getItem('syntra-theme');if(t!=='dark'&&t!=='light'){t='light'}document.documentElement.dataset.theme=t}catch{document.documentElement.dataset.theme='light'}",
           }}
         />
         <div className="app">
