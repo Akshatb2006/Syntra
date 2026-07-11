@@ -302,9 +302,9 @@ export default function RunDetailPage({
                     color: 'var(--fg-muted)',
                     lineHeight: 1.5,
                   }}>
-                    <strong style={{ color: 'var(--fg)' }}>Trial</strong> — every finding and
-                    recommendation below is yours. Turning a fix into a real pull request is a
-                    Pro feature.
+                    <strong style={{ color: 'var(--fg)' }}>Under development</strong> — every
+                    finding and recommendation below is yours. Automatic pull-request generation
+                    is currently under development and will be available soon.
                   </div>
                 )}
                 <SuggestionList suggestions={suggestions} onDevelop={(s) => setDevelopTarget(s)} forceExpanded={printing} />
@@ -346,12 +346,8 @@ export default function RunDetailPage({
       </div>
 
       <DevelopDialog
-        runId={id}
         suggestion={developTarget}
-        needsConnect={!run.input.repoUrl || !run.credentialsRef}
-        locked={executionLocked}
         onClose={() => setDevelopTarget(null)}
-        onDispatched={() => void refresh()}
       />
     </>
   );

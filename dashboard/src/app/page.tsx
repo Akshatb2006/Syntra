@@ -803,7 +803,7 @@ export default async function LandingPage({
             <div className="foot-col">
               <h4>Company</h4>
               <ul>
-                <li><a href="#">Contact</a></li>
+                <li><a href="mailto:kysuakshat23@gmail.com">Contact</a></li>
                 <li><a href="#">Privacy</a></li>
                 <li><a href="#">Terms</a></li>
                 <li><a href="#">Security</a></li>

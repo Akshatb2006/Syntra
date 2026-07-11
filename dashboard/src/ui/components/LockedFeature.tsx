@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 
-const LOCK_MSG = "Available once the full version launches";
+const LOCK_MSG = "This feature is currently under development";
 
 type Props = {
   label: string;
@@ -40,7 +40,7 @@ export function LockedFeature({ label, variant = "nav", align = "center" }: Prop
         role="tooltip"
         className={`locked-tip locked-tip-${align}${show ? " show" : ""}`}
       >
-        🔒 {LOCK_MSG}
+        🚧 {LOCK_MSG}
       </span>
     </span>
   );
