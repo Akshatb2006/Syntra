@@ -1,11 +1,17 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { HeroAuditForm } from "@/ui/components/HeroAuditForm";
-import { AuthGate } from "@/ui/components/AuthGate";
 import { ThemeToggle } from "@/ui/components/ThemeToggle";
 import { LandingMotion } from "@/ui/components/LandingMotion";
 import { StartTrialButton } from "@/ui/components/StartTrialButton";
 import { getSession } from "@/lib/auth/server";
 import "./landing.css";
+
+const AUTH_ERRORS: Record<string, string> = {
+  google_unconfigured: "Google sign-in isn’t configured yet. The admin needs to set it up.",
+  oauth_state: "Your sign-in expired or didn’t verify. Please try again.",
+  oauth_failed: "Google sign-in failed. Please try again.",
+};
 
 export const dynamic = "force-dynamic";
 
@@ -23,11 +29,22 @@ export default async function LandingPage({
   const session = await getSession();
   const authed = !!session;
   const { authError } = await searchParams;
+  // Resume a pending audit: a signed-out visitor who clicked "Analyze" was sent
+  // through sign-in with their URL stashed in `pending_audit`. Now that they're
+  // back and authed, hand it to the hero form to prefill + auto-start.
+  const pendingAudit = authed
+    ? (await cookies()).get("pending_audit")?.value ?? null
+    : null;
 
   return (
     <>
-    {authed && <LandingMotion />}
-    <div className={`syntra-landing${authed ? "" : " is-gated"}`} aria-hidden={!authed}>
+    <LandingMotion />
+    {authError && (
+      <div className="lp-auth-toast" role="alert">
+        {AUTH_ERRORS[authError] ?? "Something went wrong signing in. Please try again."}
+      </div>
+    )}
+    <div className="syntra-landing">
       {/* Continuous ambient backdrop — drifts behind the whole page */}
       <div className="lp-ambient" aria-hidden />
 
@@ -44,6 +61,11 @@ export default async function LandingPage({
             <a href="#devs">For developers</a>
             <a href="#faq">FAQ</a>
             <ThemeToggle />
+            {authed ? (
+              <Link className="nav-login" href="/runs">My runs</Link>
+            ) : (
+              <a className="nav-login" href="/api/auth/login">Log in</a>
+            )}
             <StartTrialButton className="nav-cta">
               Start a free run <span style={{ fontSize: 11 }}>→</span>
             </StartTrialButton>
@@ -70,7 +92,7 @@ export default async function LandingPage({
             highest-impact improvements, opens pull requests against your repo, and
             only flags what passes Lighthouse. You watch it work in real time.
           </p>
-          <HeroAuditForm />
+          <HeroAuditForm authed={authed} pendingAudit={pendingAudit} />
           <div className="hero-ctas">
             <a className="lp-btn lp-btn-secondary" href="#how">
               See how it works
@@ -827,7 +849,6 @@ export default async function LandingPage({
         </div>
       </footer>
     </div>
-    {!authed && <AuthGate error={authError} />}
     </>
   );
 }

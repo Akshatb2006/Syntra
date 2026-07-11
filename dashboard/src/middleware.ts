@@ -2,9 +2,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/lib/auth/session";
 
 /**
- * Auth gate for PAGE routes. The home dashboard (`/`) is public — signed-out
- * visitors land there and see it blurred behind the AuthGate overlay. Every
- * other page requires a session and bounces signed-out visitors back to `/`.
+ * Auth gate for PAGE routes. The landing (`/`) is fully public — signed-out
+ * visitors can browse it freely and only hit sign-in when they click Analyze
+ * (the hero form redirects to /api/auth/login carrying their URL). Every other
+ * page requires a session and bounces signed-out visitors back to `/`.
  * Authenticated-but-not-onboarded → /onboarding. API routes are skipped here on
  * purpose — they enforce auth themselves and must return JSON 401/404, not an
  * HTML redirect.

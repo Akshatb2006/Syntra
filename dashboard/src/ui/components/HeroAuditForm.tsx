@@ -1,5 +1,5 @@
 "use client";
-import { useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
 /**
@@ -7,10 +7,21 @@ import { useRouter } from "next/navigation";
  * credentials — it creates an audit-only run and drops the user straight onto
  * the live results page. Credentials are only asked for later, when they
  * choose to implement a fix.
+ *
+ * Auth is deferred: signed-out visitors can browse the whole landing and only
+ * hit sign-in when they click Analyze. We carry the intended URL through the
+ * OAuth round-trip (via a `pending_audit` cookie set by /api/auth/login), so
+ * after sign-in + onboarding the audit resumes automatically here.
  */
-export function HeroAuditForm() {
+export function HeroAuditForm({
+  authed = false,
+  pendingAudit = null,
+}: {
+  authed?: boolean;
+  pendingAudit?: string | null;
+}) {
   const router = useRouter();
-  const [url, setUrl] = useState("");
+  const [url, setUrl] = useState(pendingAudit ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,6 +38,40 @@ export function HeroAuditForm() {
     }
   }
 
+  // Send an unauthenticated visitor into Google sign-in, stashing the site they
+  // want audited so we can resume it when they return.
+  function toSignIn(siteUrl: string) {
+    window.location.href = `/api/auth/login?audit=${encodeURIComponent(siteUrl)}`;
+  }
+
+  const startAudit = useCallback(
+    async (siteUrl: string) => {
+      setBusy(true);
+      setError(null);
+      try {
+        const res = await fetch("/api/runs", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            input: { siteUrl, trigger: { kind: "manual", userId: "self" } },
+          }),
+        });
+        if (res.status === 401) {
+          // Session lapsed between page load and submit — go (re)authenticate.
+          toSignIn(siteUrl);
+          return;
+        }
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error ?? "Could not start the audit");
+        router.push(`/runs/${json.run.id}`);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+        setBusy(false);
+      }
+    },
+    [router],
+  );
+
   async function analyze(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -35,30 +80,24 @@ export function HeroAuditForm() {
       setError("Enter a valid website URL, e.g. yourcompany.com");
       return;
     }
-    setBusy(true);
-    try {
-      const res = await fetch("/api/runs", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          // userId is overridden server-side from the session; sent only to
-          // satisfy the request schema.
-          input: { siteUrl, trigger: { kind: "manual", userId: "self" } },
-        }),
-      });
-      if (res.status === 401) {
-        // Session lapsed — reload so the sign-in gate reappears over the dashboard.
-        window.location.href = "/";
-        return;
-      }
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Could not start the audit");
-      router.push(`/runs/${json.run.id}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      setBusy(false);
+    if (!authed) {
+      // Not signed in yet — this click is what triggers sign-in.
+      toSignIn(siteUrl);
+      return;
     }
+    await startAudit(siteUrl);
   }
+
+  // Resume: a visitor who clicked Analyze while signed out has now signed in and
+  // onboarded, landing back here with their URL in `pending_audit`. Clear the
+  // cookie (so a refresh doesn't re-fire) and start the audit automatically.
+  useEffect(() => {
+    if (!pendingAudit) return;
+    document.cookie = "pending_audit=; Max-Age=0; path=/";
+    const siteUrl = normalize(pendingAudit);
+    if (siteUrl) void startAudit(siteUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAudit]);
 
   return (
     <form className="hero-audit" onSubmit={analyze}>
@@ -83,7 +122,9 @@ export function HeroAuditForm() {
         <div className="hero-audit-error">{error}</div>
       ) : (
         <div className="hero-audit-note">
-          Paste your URL — a real audit in a couple of minutes.
+          {authed
+            ? "Paste your URL — a real audit in a couple of minutes."
+            : "Paste your URL — sign in and we’ll run a real audit in minutes."}
         </div>
       )}
     </form>

@@ -1,12 +1,20 @@
 import { redirect } from "next/navigation";
 import { getSession, setSession } from "@/lib/auth/server";
 import { sqliteStore } from "@/infra/store/sqlite";
+import "./onboarding.css";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const metadata = { title: "Welcome · Syntra" };
 
-const ROLES = ["Founder", "Agency", "Marketing", "SEO", "Developer", "Other"] as const;
+const ROLES = [
+  { name: "Founder", icon: "👤" },
+  { name: "Agency", icon: "🏢" },
+  { name: "Marketing", icon: "📣" },
+  { name: "SEO", icon: "🔍" },
+  { name: "Developer", icon: "💻" },
+  { name: "Other", icon: "✨" },
+] as const;
 
 async function saveOnboarding(formData: FormData) {
   "use server";
@@ -35,101 +43,59 @@ export default async function OnboardingPage({
   const session = await getSession();
   if (!session) redirect("/");
   const { error } = await searchParams;
+  const first = session.name ? session.name.split(" ")[0] : "";
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 24,
-        background: "var(--bg)",
-      }}
-    >
-      <form
-        action={saveOnboarding}
-        style={{
-          width: "100%",
-          maxWidth: 460,
-          background: "var(--surface)",
-          border: "1px solid var(--border)",
-          borderRadius: 16,
-          padding: "32px 30px",
-        }}
-      >
-        <h1 style={{ fontSize: 21, fontWeight: 650, margin: "0 0 4px" }}>
-          Welcome{session.name ? `, ${session.name.split(" ")[0]}` : ""} 👋
+    <div className="onb-screen">
+      {/* Ambient branded backdrop — teal aurora + drifting orbs + faint grid. */}
+      <div className="onb-aurora" aria-hidden />
+      <div className="onb-grid" aria-hidden />
+      <span className="onb-orb onb-orb-1" aria-hidden />
+      <span className="onb-orb onb-orb-2" aria-hidden />
+
+      <form action={saveOnboarding} className="onb-card">
+        <div className="onb-brand">
+          <img className="onb-mark" src="/syntra-logo.png" alt="" />
+          <span>Syntra</span>
+        </div>
+
+        <h1 className="onb-title">
+          Welcome{first ? `, ${first}` : ""} <span className="onb-wave">👋</span>
         </h1>
-        <p style={{ color: "var(--fg-muted)", fontSize: 13.5, margin: "0 0 22px", lineHeight: 1.5 }}>
-          A couple of quick questions, then you’re into the dashboard.
-        </p>
+        <p className="onb-sub">One quick step, then we’ll run your audit.</p>
 
         {error && (
-          <div
-            style={{
-              color: "var(--danger)",
-              fontSize: 12.5,
-              marginBottom: 16,
-            }}
-          >
-            Please fill in your company and pick what best describes you.
+          <div className="onb-error" role="alert">
+            Please add your company and pick what best describes you.
           </div>
         )}
 
-        <label style={labelStyle}>Company name</label>
-        <input name="company" required placeholder="Acme Inc." style={inputStyle} />
+        <label className="onb-label" htmlFor="company">Company</label>
+        <input
+          id="company"
+          name="company"
+          required
+          autoComplete="organization"
+          placeholder="Acme Inc."
+          className="onb-input"
+        />
 
-        <label style={{ ...labelStyle, marginBottom: 10 }}>What best describes you?</label>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
+        <span className="onb-label onb-label-block">You are…</span>
+        <div className="onb-roles">
           {ROLES.map((r, i) => (
-            <label
-              key={r}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "10px 12px",
-                border: "1px solid var(--border)",
-                borderRadius: 9,
-                cursor: "pointer",
-                fontSize: 14,
-              }}
-            >
-              <input type="radio" name="role" value={r} required defaultChecked={i === 0} />
-              {r}
+            <label className="onb-role" key={r.name}>
+              <input type="radio" name="role" value={r.name} required defaultChecked={i === 0} />
+              <span className="onb-role-ico" aria-hidden>{r.icon}</span>
+              <span className="onb-role-name">{r.name}</span>
+              <span className="onb-role-check" aria-hidden>✓</span>
             </label>
           ))}
         </div>
 
-        <button
-          type="submit"
-          className="btn btn-primary"
-          style={{ width: "100%", justifyContent: "center" }}
-        >
-          Continue to dashboard →
+        <button type="submit" className="onb-submit">
+          Continue to audit <span aria-hidden>→</span>
         </button>
       </form>
     </div>
   );
 }
-
-const labelStyle = {
-  display: "block",
-  fontSize: 12.5,
-  fontWeight: 550,
-  color: "var(--fg-muted)",
-  margin: "0 0 6px",
-} as const;
-
-const inputStyle = {
-  width: "100%",
-  padding: "11px 13px",
-  borderRadius: 9,
-  border: "1px solid var(--border)",
-  background: "var(--surface-2, #fff)",
-  color: "var(--fg)",
-  fontSize: 14,
-  marginBottom: 18,
-  boxSizing: "border-box" as const,
-};

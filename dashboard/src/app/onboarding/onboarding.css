@@ -1,0 +1,250 @@
+/* Onboarding — a single centered card floating over an ambient teal aurora with
+   drifting orbs and a faint grid. Theme-aware (light + dark). Deliberately NOT
+   the login split-screen. */
+
+.onb-screen {
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  background: var(--bg);
+  z-index: 50;
+}
+
+/* Aurora glow — two soft teal radials that slowly breathe. */
+.onb-aurora {
+  position: absolute;
+  inset: -20% -10%;
+  pointer-events: none;
+  background:
+    radial-gradient(38% 44% at 22% 18%, rgba(45, 212, 191, 0.20), transparent 70%),
+    radial-gradient(40% 46% at 82% 88%, rgba(94, 234, 212, 0.16), transparent 72%),
+    radial-gradient(30% 34% at 68% 12%, rgba(45, 212, 191, 0.10), transparent 70%);
+  filter: saturate(120%);
+  animation: onb-aurora-breathe 14s ease-in-out infinite;
+}
+@keyframes onb-aurora-breathe {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.9; }
+  50% { transform: translate3d(0, -14px, 0) scale(1.05); opacity: 1; }
+}
+
+/* Faint grid, masked to fade out toward the edges. */
+.onb-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgba(127, 143, 160, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(127, 143, 160, 0.08) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse 70% 65% at 50% 45%, black 0%, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 65% at 50% 45%, black 0%, transparent 80%);
+}
+
+/* Drifting orbs. */
+.onb-orb {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(38px);
+  opacity: 0.55;
+}
+.onb-orb-1 {
+  width: 320px; height: 320px;
+  left: 8%; top: 12%;
+  background: radial-gradient(circle at 30% 30%, rgba(45, 212, 191, 0.55), transparent 70%);
+  animation: onb-drift-1 18s ease-in-out infinite;
+}
+.onb-orb-2 {
+  width: 260px; height: 260px;
+  right: 6%; bottom: 8%;
+  background: radial-gradient(circle at 60% 40%, rgba(94, 234, 212, 0.42), transparent 70%);
+  animation: onb-drift-2 22s ease-in-out infinite;
+}
+@keyframes onb-drift-1 {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(26px, 20px); }
+}
+@keyframes onb-drift-2 {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-22px, -18px); }
+}
+
+/* ---- The card ---- */
+.onb-card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 468px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  -webkit-backdrop-filter: blur(12px) saturate(130%);
+  backdrop-filter: blur(12px) saturate(130%);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 34px 34px 30px;
+  box-shadow:
+    0 30px 70px -24px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(45, 212, 191, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  animation: onb-card-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes onb-card-in {
+  from { opacity: 0; transform: translateY(18px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+.onb-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  font-size: 15.5px;
+  letter-spacing: -0.01em;
+  color: var(--fg);
+  margin-bottom: 20px;
+}
+.onb-mark { height: 30px; width: auto; object-fit: contain; display: block; }
+[data-theme="dark"] .onb-mark { filter: invert(1); }
+
+.onb-title {
+  font-size: 25px;
+  font-weight: 660;
+  letter-spacing: -0.02em;
+  color: var(--fg);
+  margin: 0 0 6px;
+}
+.onb-wave { display: inline-block; animation: onb-wave 2.4s ease-in-out infinite; transform-origin: 70% 70%; }
+@keyframes onb-wave {
+  0%, 60%, 100% { transform: rotate(0); }
+  10%, 30% { transform: rotate(14deg); }
+  20% { transform: rotate(-8deg); }
+}
+.onb-sub {
+  color: var(--fg-muted);
+  font-size: 14px;
+  line-height: 1.55;
+  margin: 0 0 24px;
+}
+
+.onb-error {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border: 1px solid var(--danger-border);
+  border-radius: 10px;
+  padding: 10px 13px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  margin-bottom: 18px;
+}
+
+.onb-label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 560;
+  color: var(--fg-muted);
+  margin: 0 0 7px;
+}
+.onb-label-block { margin-top: 20px; margin-bottom: 11px; }
+
+.onb-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 11px;
+  border: 1px solid var(--border-2);
+  background: var(--surface-2);
+  color: var(--fg);
+  font-size: 14.5px;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.onb-input::placeholder { color: var(--fg-dim); }
+.onb-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  background: var(--surface);
+}
+
+/* Role grid — selectable cards (CSS-only checked state via :has). */
+.onb-roles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.onb-role {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 13px 14px;
+  border: 1px solid var(--border-2);
+  border-radius: 12px;
+  background: var(--surface-2);
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--fg);
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.08s ease, box-shadow 0.15s ease;
+}
+.onb-role input { position: absolute; opacity: 0; pointer-events: none; }
+.onb-role:hover { border-color: var(--accent); transform: translateY(-1px); }
+.onb-role:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 1px var(--accent) inset;
+}
+.onb-role:has(input:focus-visible) { box-shadow: 0 0 0 3px var(--accent-soft); }
+.onb-role-ico {
+  font-size: 17px;
+  line-height: 1;
+  filter: saturate(115%);
+}
+.onb-role-name { font-weight: 540; }
+.onb-role-check {
+  margin-left: auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--accent-fg);
+  background: var(--accent);
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.onb-role:has(input:checked) .onb-role-check { opacity: 1; transform: scale(1); }
+
+.onb-submit {
+  margin-top: 26px;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px 18px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: 15px;
+  font-weight: 620;
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.06s ease, box-shadow 0.15s ease;
+  box-shadow: 0 10px 24px -10px rgba(45, 212, 191, 0.6);
+}
+.onb-submit:hover { filter: brightness(1.06); box-shadow: 0 14px 30px -10px rgba(45, 212, 191, 0.7); }
+.onb-submit:active { transform: translateY(1px); }
+.onb-submit:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@media (max-width: 460px) {
+  .onb-roles { grid-template-columns: 1fr; }
+  .onb-card { padding: 26px 22px 24px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .onb-aurora, .onb-orb, .onb-wave, .onb-card { animation: none; }
+}
