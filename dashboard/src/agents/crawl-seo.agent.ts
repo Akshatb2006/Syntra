@@ -67,14 +67,23 @@ export class CrawlSeoAgent extends BaseAgent<CrawlSeoInput, CrawlSeoOutput> {
     try {
       const trace = { traceId: span.traceId, parentSpanId: span.spanId };
 
-      const [crawl, baseline] = await Promise.all([
-        this.mcp.crawlSite({ url: input.siteUrl, maxPages: 30 }, trace),
-        this.mcp.lighthouseRun({ url: input.siteUrl, formFactor: "mobile" }, trace),
-      ]);
+      // Crawl FIRST, on its own. Lighthouse's performance score is CPU-bound and
+      // very sensitive to load, so we deliberately do NOT run it while the
+      // crawler (Playwright) is saturating this small/shared host's CPU — that
+      // was depressing the mobile performance score. Trade-off: ~a crawl's worth
+      // of extra wall-clock, in exchange for scores this box can actually trust.
+      const crawl = await this.mcp.crawlSite(
+        { url: input.siteUrl, maxPages: 30 },
+        trace,
+      );
 
-      // Desktop pass runs AFTER the mobile+crawl block (not in parallel) so we
-      // never have three headless Chromium instances open at once — that would
-      // OOM the small host. Best-effort: a desktop failure must not fail the run.
+      // Then the Lighthouse passes, one at a time on a now-quiet CPU (also keeps
+      // us to a single headless Chromium at once — no OOM risk on 2 GB).
+      const baseline = await this.mcp.lighthouseRun(
+        { url: input.siteUrl, formFactor: "mobile" },
+        trace,
+      );
+      // Desktop is best-effort — a failure here must not fail the whole run.
       let baselineDesktop: LighthouseRunOutput | null = null;
       try {
         baselineDesktop = await this.mcp.lighthouseRun(
