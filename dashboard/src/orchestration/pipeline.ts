@@ -143,6 +143,7 @@ export async function createRun(
     prUrl: null,
     previewUrl: null,
     baselineLighthouse: null,
+    baselineLighthouseDesktop: null,
     afterLighthouse: null,
     error: null,
     createdAt: now,
@@ -230,6 +231,16 @@ async function runPipeline(run: Run): Promise<void> {
         seo: crawl.baseline.scores.seo,
         fetchedAt: crawl.baseline.fetchedAt,
       },
+      baselineLighthouseDesktop: crawl.baselineDesktop
+        ? {
+            url: crawl.baselineDesktop.url,
+            performance: crawl.baselineDesktop.scores.performance,
+            accessibility: crawl.baselineDesktop.scores.accessibility,
+            bestPractices: crawl.baselineDesktop.scores.bestPractices,
+            seo: crawl.baselineDesktop.scores.seo,
+            fetchedAt: crawl.baselineDesktop.fetchedAt,
+          }
+        : null,
     });
 
     throwIfCancelled(run.id);

@@ -22,6 +22,8 @@ export interface CrawlSeoInput {
 export interface CrawlSeoOutput {
   crawl: CrawlSiteOutput;
   baseline: LighthouseRunOutput;
+  /** Desktop form-factor Lighthouse pass (best-effort; null if it failed). */
+  baselineDesktop: LighthouseRunOutput | null;
   auditNarrative: string;
   /** What kind of business this is — drives every downstream prompt. */
   businessProfile: BusinessProfile;
@@ -69,6 +71,19 @@ export class CrawlSeoAgent extends BaseAgent<CrawlSeoInput, CrawlSeoOutput> {
         this.mcp.crawlSite({ url: input.siteUrl, maxPages: 30 }, trace),
         this.mcp.lighthouseRun({ url: input.siteUrl, formFactor: "mobile" }, trace),
       ]);
+
+      // Desktop pass runs AFTER the mobile+crawl block (not in parallel) so we
+      // never have three headless Chromium instances open at once — that would
+      // OOM the small host. Best-effort: a desktop failure must not fail the run.
+      let baselineDesktop: LighthouseRunOutput | null = null;
+      try {
+        baselineDesktop = await this.mcp.lighthouseRun(
+          { url: input.siteUrl, formFactor: "desktop" },
+          trace,
+        );
+      } catch {
+        baselineDesktop = null;
+      }
 
       // Classify the business first so the audit (and everything downstream)
       // adapts to the industry instead of assuming real estate.
@@ -168,6 +183,7 @@ Use the tools only if a specific page needs deeper inspection. Then produce the 
       const output: CrawlSeoOutput = {
         crawl,
         baseline,
+        baselineDesktop,
         auditNarrative,
         businessProfile,
         detectedLocalities,

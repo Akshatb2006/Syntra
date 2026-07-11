@@ -115,6 +115,7 @@ async function main() {
     prUrl: null,
     previewUrl: null,
     baselineLighthouse: null,
+    baselineLighthouseDesktop: null,
     afterLighthouse: null,
     error: null,
     createdAt: Date.now(),

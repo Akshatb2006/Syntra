@@ -28,6 +28,9 @@ export function getDb(): Db {
   // as legacy — it keeps representing what Syntra believed when it ran.
   safeAlter("ALTER TABLE runs ADD COLUMN engine_version TEXT NOT NULL DEFAULT 'v0'");
   safeAlter("ALTER TABLE runs ADD COLUMN detector_version TEXT NOT NULL DEFAULT 'v0'");
+  // Desktop-form-factor Lighthouse baseline (mobile lives in baseline_lh_json).
+  // Nullable — legacy runs and any run whose desktop pass failed simply have none.
+  safeAlter("ALTER TABLE runs ADD COLUMN baseline_lh_desktop_json TEXT");
   // Deficit-centric suggestion fields (issue / measured evidence / implementation).
   safeAlter("ALTER TABLE suggestions ADD COLUMN issue TEXT NOT NULL DEFAULT ''");
   safeAlter("ALTER TABLE suggestions ADD COLUMN evidence_json TEXT NOT NULL DEFAULT '[]'");

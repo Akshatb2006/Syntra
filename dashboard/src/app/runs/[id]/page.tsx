@@ -303,7 +303,7 @@ export default function RunDetailPage({
                     branded top instead of a bare card list. Hidden on screen. */}
                 <div className="print-report-head print-only">
                   <div className="print-report-brand">
-                    <img src="/syntra-logo.png" alt="Syntra" />
+                    <img src="/syntra-logo.png" alt="Syntra" width={256} height={181} />
                     <span>Syntra</span>
                   </div>
                   <h1>SEO Growth Report</h1>
@@ -319,6 +319,7 @@ export default function RunDetailPage({
                 </div>
                 <SearchHealth
                   baseline={run.baselineLighthouse}
+                  baselineDesktop={run.baselineLighthouseDesktop}
                   opportunities={suggestions.length}
                   analyzing={isActiveRun}
                 />

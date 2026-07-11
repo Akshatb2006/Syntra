@@ -14,6 +14,7 @@ interface Row {
   pr_url: string | null;
   preview_url: string | null;
   baseline_lh_json: string | null;
+  baseline_lh_desktop_json: string | null;
   after_lh_json: string | null;
   error_json: string | null;
   created_at: number;
@@ -36,6 +37,9 @@ function toRun(row: Row): Run {
     baselineLighthouse: row.baseline_lh_json
       ? (JSON.parse(row.baseline_lh_json) as Run["baselineLighthouse"])
       : null,
+    baselineLighthouseDesktop: row.baseline_lh_desktop_json
+      ? (JSON.parse(row.baseline_lh_desktop_json) as Run["baselineLighthouseDesktop"])
+      : null,
     afterLighthouse: row.after_lh_json
       ? (JSON.parse(row.after_lh_json) as Run["afterLighthouse"])
       : null,
@@ -53,9 +57,9 @@ export const runsRepo: RunsRepoPort = {
     getDb()
       .prepare(
         `INSERT INTO runs (id, owner, input_json, status, engine_version, detector_version, credentials_ref, workspace_id, pr_url, preview_url,
-          baseline_lh_json, after_lh_json, error_json, created_at, updated_at, completed_at)
+          baseline_lh_json, baseline_lh_desktop_json, after_lh_json, error_json, created_at, updated_at, completed_at)
         VALUES (@id, @owner, @input, @status, @engineVersion, @detectorVersion, @credentialsRef, @workspaceId, @prUrl, @previewUrl,
-          @baseline, @after, @error, @createdAt, @updatedAt, @completedAt)`,
+          @baseline, @baselineDesktop, @after, @error, @createdAt, @updatedAt, @completedAt)`,
       )
       .run({
         id: run.id,
@@ -70,6 +74,9 @@ export const runsRepo: RunsRepoPort = {
         previewUrl: run.previewUrl,
         baseline: run.baselineLighthouse
           ? JSON.stringify(run.baselineLighthouse)
+          : null,
+        baselineDesktop: run.baselineLighthouseDesktop
+          ? JSON.stringify(run.baselineLighthouseDesktop)
           : null,
         after: run.afterLighthouse ? JSON.stringify(run.afterLighthouse) : null,
         error: run.error ? JSON.stringify(run.error) : null,
@@ -117,6 +124,7 @@ export const runsRepo: RunsRepoPort = {
           pr_url = @prUrl,
           preview_url = @previewUrl,
           baseline_lh_json = @baseline,
+          baseline_lh_desktop_json = @baselineDesktop,
           after_lh_json = @after,
           error_json = @error,
           updated_at = @updatedAt,
@@ -132,6 +140,9 @@ export const runsRepo: RunsRepoPort = {
         previewUrl: merged.previewUrl,
         baseline: merged.baselineLighthouse
           ? JSON.stringify(merged.baselineLighthouse)
+          : null,
+        baselineDesktop: merged.baselineLighthouseDesktop
+          ? JSON.stringify(merged.baselineLighthouseDesktop)
           : null,
         after: merged.afterLighthouse
           ? JSON.stringify(merged.afterLighthouse)

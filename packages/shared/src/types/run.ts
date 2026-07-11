@@ -77,6 +77,9 @@ export interface Run {
   prUrl: string | null;
   previewUrl: string | null;
   baselineLighthouse: LighthouseSummary | null;
+  // Desktop form-factor baseline, run alongside the mobile one above. Null if
+  // the desktop Lighthouse pass was unavailable (it's best-effort).
+  baselineLighthouseDesktop: LighthouseSummary | null;
   afterLighthouse: LighthouseSummary | null;
   error: { message: string; stack?: string } | null;
 }
