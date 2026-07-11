@@ -1,24 +1,46 @@
-# Dashboard-only alpha — single VM (AWS EC2, e.g. t3.small) + Docker.
-# Two containers: the Next.js dashboard and a Caddy reverse proxy that gets
-# automatic HTTPS from Let's Encrypt (required: Google OAuth + secure cookies
-# need a real https domain). Set DOMAIN in ./.env (see .env.deploy.example).
+# Full-engine deploy — single VM (AWS EC2, t3.medium recommended) + Docker.
+# Three containers: the Next.js dashboard, the MCP server (crawl + Lighthouse
+# engine, headless Chromium), and a Caddy reverse proxy that gets automatic
+# HTTPS from Let's Encrypt (Google OAuth + secure cookies need a real https
+# domain). The dashboard runs the pipeline in-process and calls the MCP server
+# over the internal Docker network — MCP is never exposed publicly.
 #
-#   cp .env.deploy.example .env        # set DOMAIN=app.yourdomain.com
-#   cp dashboard/.env.example dashboard/.env && edit it (AUTH_URL, secrets…)
+#   cp .env.deploy.example .env         # set DOMAIN=app.yourdomain.com
+#   # dashboard/.env  → AUTH_*, GOOGLE_*, ANTHROPIC_API_KEY, MCP_BASE_URL=http://mcp:3100,
+#   #                   MCP_BEARER_TOKEN (must match a token in mcp-server/.env VALID_TOKENS)
+#   # mcp-server/.env → VALID_TOKENS=<token>:syntra-dashboard
 #   docker compose up -d --build
 services:
   dashboard:
     build:
       context: .
       dockerfile: dashboard/Dockerfile
-    env_file: ./dashboard/.env          # AUTH_URL, AUTH_SECRET, GOOGLE_*, etc.
+    env_file: ./dashboard/.env          # AUTH_URL, GOOGLE_*, ANTHROPIC_API_KEY, MCP_*, etc.
     environment:
       NODE_ENV: production
       SQLITE_PATH: /data/growth-engineer.db   # persistent — survives redeploys
+      MCP_BASE_URL: http://mcp:3100     # reach the MCP server over the compose network
+    depends_on: [mcp]
     volumes:
       - db-data:/data
     expose:
       - "3000"                          # internal only; Caddy fronts it
+    restart: unless-stopped
+
+  mcp:
+    build:
+      context: .
+      dockerfile: mcp-server/Dockerfile
+    env_file: ./mcp-server/.env         # VALID_TOKENS (must include dashboard's bearer)
+    environment:
+      NODE_ENV: production
+      PORT: "3100"
+      LOG_DIR: /data/logs
+      WORKSPACE_ROOT: /data/workspaces
+    volumes:
+      - mcp-data:/data                  # logs + per-run repo clones
+    expose:
+      - "3100"                          # internal only; dashboard talks to it privately
     restart: unless-stopped
 
   caddy:
@@ -37,5 +59,6 @@ services:
 
 volumes:
   db-data:        # Syntra SQLite (users, runs, suggestions, encrypted secrets)
+  mcp-data:       # MCP server logs + per-run workspace clones
   caddy-data:     # Let's Encrypt certs
   caddy-config:
