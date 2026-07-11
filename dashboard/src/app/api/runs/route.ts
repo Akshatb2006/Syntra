@@ -4,6 +4,7 @@ import { sqliteStore } from "@/infra/store/sqlite";
 import { createRun } from "@/orchestration/pipeline";
 import { ensureRuntime } from "@/orchestration/job-runner";
 import { requireUser } from "@/lib/auth/guard";
+import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +21,31 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const g = await requireUser();
   if (!g.ok) return g.res;
+
+  // --- Per-user run cap (alpha cost control) ---
+  // Count this account's SUCCESSFUL (completed) runs. Failed/cancelled and
+  // in-flight runs don't count — so a genuine failure doesn't burn quota, and a
+  // run orphaned by a redeploy can't permanently lock the user out. Exempt
+  // accounts (RUN_LIMIT_EXEMPT_EMAILS) bypass the cap entirely.
+  if (!env.runLimitExemptEmails.has(g.session.email.toLowerCase())) {
+    const successfulRuns = sqliteStore.runs
+      .list(1000, g.session.uid)
+      .filter((r) => r.status === "completed").length;
+    if (successfulRuns >= env.maxRunsPerUser) {
+      logger.warn("run_limit_reached", {
+        uid: g.session.uid,
+        successfulRuns,
+        limit: env.maxRunsPerUser,
+      });
+      return NextResponse.json(
+        {
+          error: `You've reached the ${env.maxRunsPerUser}-audit limit for this alpha. Each account can run ${env.maxRunsPerUser} successful audits.`,
+        },
+        { status: 429 },
+      );
+    }
+  }
+
   ensureRuntime();
   try {
     const body = await req.json();

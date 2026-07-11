@@ -32,6 +32,13 @@ const schema = z.object({
   // When "1"/"true", enables a dev-only login bypass (no Google needed) for
   // local testing. MUST be off in production.
   DEV_LOGIN: z.string().optional(),
+  // --- Per-user run cap (alpha cost control) ---
+  // Max number of SUCCESSFUL (completed) pipeline runs a single account may
+  // start. Once reached, POST /api/runs is rejected. Default 2.
+  MAX_RUNS_PER_USER: z.coerce.number().int().positive().default(2),
+  // Comma-separated emails exempt from the cap (e.g. your own admin account so
+  // you can keep testing). Case-insensitive. Empty = everyone is capped.
+  RUN_LIMIT_EXEMPT_EMAILS: z.string().optional(),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -62,4 +69,11 @@ export const env = {
   googleClientSecret: parsed.data.GOOGLE_CLIENT_SECRET ?? null,
   googleConfigured: Boolean(parsed.data.GOOGLE_CLIENT_ID && parsed.data.GOOGLE_CLIENT_SECRET),
   devLogin: parsed.data.DEV_LOGIN === "1" || parsed.data.DEV_LOGIN === "true",
+  maxRunsPerUser: parsed.data.MAX_RUNS_PER_USER,
+  runLimitExemptEmails: new Set(
+    (parsed.data.RUN_LIMIT_EXEMPT_EMAILS ?? "")
+      .split(",")
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean),
+  ),
 } as const;
