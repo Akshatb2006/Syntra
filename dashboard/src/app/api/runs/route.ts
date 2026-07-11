@@ -4,6 +4,7 @@ import { sqliteStore } from "@/infra/store/sqlite";
 import { createRun } from "@/orchestration/pipeline";
 import { ensureRuntime } from "@/orchestration/job-runner";
 import { requireUser } from "@/lib/auth/guard";
+import { isSuccessfulAudit } from "@/orchestration/run-status";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 
@@ -23,14 +24,16 @@ export async function POST(req: NextRequest) {
   if (!g.ok) return g.res;
 
   // --- Per-user run cap (alpha cost control) ---
-  // Count this account's SUCCESSFUL (completed) runs. Failed/cancelled and
-  // in-flight runs don't count — so a genuine failure doesn't burn quota, and a
-  // run orphaned by a redeploy can't permanently lock the user out. Exempt
-  // accounts (RUN_LIMIT_EXEMPT_EMAILS) bypass the cap entirely.
+  // Count this account's SUCCESSFUL audits. An audit-only run's success terminal
+  // is "awaiting_dispatch" (see run-status.ts) — NOT "completed" — so we key off
+  // isSuccessfulAudit. Failed/cancelled and still-in-flight runs don't count, so
+  // a genuine failure or a cancel doesn't burn quota and a run orphaned by a
+  // redeploy can't permanently lock the user out. Exempt accounts
+  // (RUN_LIMIT_EXEMPT_EMAILS) bypass the cap entirely.
   if (!env.runLimitExemptEmails.has(g.session.email.toLowerCase())) {
     const successfulRuns = sqliteStore.runs
       .list(1000, g.session.uid)
-      .filter((r) => r.status === "completed").length;
+      .filter((r) => isSuccessfulAudit(r.status)).length;
     if (successfulRuns >= env.maxRunsPerUser) {
       logger.warn("run_limit_reached", {
         uid: g.session.uid,

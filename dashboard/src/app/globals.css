@@ -292,8 +292,14 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
   border-radius: 50%;
   background: var(--accent);
 }
+.status-pill.cancelled {
+  background: var(--surface-2);
+  border-color: var(--border-2);
+  color: var(--fg-muted);
+}
 .status-pill.done .dot { background: var(--success); }
 .status-pill.failed .dot { background: var(--danger); }
+.status-pill.cancelled .dot { background: var(--fg-dim); animation: none; }
 .header-link {
   display: inline-flex;
   align-items: center;
@@ -307,6 +313,9 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .header-link:hover { background: var(--surface-2); color: var(--fg); text-decoration: none; }
 .header-link .ext { font-size: 0.625rem; opacity: 0.7; }
 .header-link.primary { color: var(--accent-strong); }
+.header-link.danger { color: var(--danger); }
+.header-link.danger:hover { background: var(--danger-soft); color: var(--danger); }
+.header-link.danger:disabled { opacity: 0.55; cursor: default; background: transparent; }
 .icon-btn {
   width: 30px;
   height: 30px;

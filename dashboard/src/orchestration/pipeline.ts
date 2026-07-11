@@ -3,6 +3,7 @@ import { newId } from "@/lib/id";
 import { logger } from "@/lib/logger";
 import { sqliteStore } from "@/infra/store/sqlite";
 import { eventBus } from "@/infra/eventbus/local.bus";
+import { throwIfCancelled, clearCancel, RunCancelledError } from "./cancel";
 import { getTracer } from "@/infra/tracer";
 import { getMcp } from "@/infra/mcp/http.client";
 import { AnthropicClient } from "@/infra/llm/anthropic.client";
@@ -213,6 +214,7 @@ async function runPipeline(run: Run): Promise<void> {
   try {
     // 1. Crawl + baseline audit — straight off the public URL (also classifies
     //    the business profile). No repo, no credentials.
+    throwIfCancelled(run.id);
     transition(run.id, "crawling");
     const crawl = await new CrawlSeoAgent(mcp).run(rootCtx, {
       siteUrl: run.input.siteUrl,
@@ -229,6 +231,8 @@ async function runPipeline(run: Run): Promise<void> {
         fetchedAt: crawl.baseline.fetchedAt,
       },
     });
+
+    throwIfCancelled(run.id);
 
     // 3. Local intelligence — only for businesses that actually serve specific
     //    places, and only when we know which city. Otherwise it's skipped (no
@@ -347,6 +351,7 @@ async function runPipeline(run: Run): Promise<void> {
       });
     }
 
+    throwIfCancelled(run.id);
     const plan = await new OrchestratorAgent().run(rootCtx, {
       siteUrl: run.input.siteUrl,
       crawl,
@@ -362,9 +367,25 @@ async function runPipeline(run: Run): Promise<void> {
     }
 
     // 5. Hand off to the user. They trigger dispatches per suggestion via the UI.
+    //    Final checkpoint — a cancel requested during the plan/enrich/blueprint
+    //    block must land the run on "cancelled", not "awaiting_dispatch".
+    throwIfCancelled(run.id);
     transition(run.id, "awaiting_dispatch");
     rootSpan.end({ status: "ok" });
   } catch (err) {
+    if (err instanceof RunCancelledError) {
+      logger.info("pipeline_cancelled", { runId: run.id });
+      sqliteStore.runs.patch(run.id, { status: "cancelled", completedAt: Date.now() });
+      eventBus.publish({
+        type: "run.status_changed",
+        runId: run.id,
+        status: "cancelled",
+        at: Date.now(),
+      });
+      rootSpan.end({ status: "ok" });
+      await tracer.flush?.();
+      return;
+    }
     const e = err instanceof Error ? err : new Error(String(err));
     logger.error("pipeline_failed", { runId: run.id, error: e.message });
     sqliteStore.runs.patch(run.id, {
@@ -380,5 +401,7 @@ async function runPipeline(run: Run): Promise<void> {
     });
     rootSpan.end({ status: "error", error: e });
     await tracer.flush?.();
+  } finally {
+    clearCancel(run.id);
   }
 }

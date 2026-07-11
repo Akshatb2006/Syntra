@@ -17,6 +17,7 @@ import { DevelopDialog } from "@/ui/components/DevelopDialog";
 import { SiteUnderstanding } from "@/ui/components/SiteUnderstanding";
 import { SearchHealth } from "@/ui/components/SearchHealth";
 import { executionUnlocked } from "@/lib/plan";
+import { isCancellable } from "@/orchestration/run-status";
 import { useSse } from "@/ui/hooks/useSse";
 
 interface DetailResponse {
@@ -48,6 +49,7 @@ export default function RunDetailPage({
   // clean single column so window.print() produces a full-detail PDF that mirrors
   // the on-screen cards exactly.
   const [printing, setPrinting] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [latestDeployment, setLatestDeployment] = useState<{
     url: string;
     state: string;
@@ -65,6 +67,23 @@ export default function RunDetailPage({
   function downloadPdf() {
     setActiveTab("results");
     setPrinting(true);
+  }
+
+  async function cancelRun() {
+    if (cancelling) return;
+    if (!window.confirm("Cancel this run? It will stop and can’t be resumed.")) return;
+    setCancelling(true);
+    try {
+      const r = await fetch(`/api/runs/${id}/cancel`, { method: "POST" });
+      // 409 = already finished/cancelled — refresh reflects the real state either way.
+      await refresh();
+      if (!r.ok && r.status !== 409) {
+        const j = await r.json().catch(() => ({}));
+        console.error("cancel failed", j);
+      }
+    } finally {
+      setCancelling(false);
+    }
   }
 
   useEffect(() => {
@@ -148,6 +167,9 @@ export default function RunDetailPage({
     run.status !== "completed" &&
     run.status !== "failed" &&
     run.status !== "cancelled";
+  // Cancellable only while the pipeline is genuinely running (excludes the
+  // audit's success terminal "awaiting_dispatch" and all other terminal states).
+  const cancellable = isCancellable(run.status);
 
   let hostname = "site";
   let repo = "repo";
@@ -182,10 +204,20 @@ export default function RunDetailPage({
               reconnecting…
             </div>
           )}
-          <div className={`status-pill ${run.status === 'completed' ? 'done' : run.status === 'failed' ? 'failed' : ''}`}>
+          <div className={`status-pill ${run.status === 'completed' ? 'done' : run.status === 'failed' ? 'failed' : run.status === 'cancelled' ? 'cancelled' : ''}`}>
             <span className="dot pulse-soft"></span>
             <span>{run.status}</span>
           </div>
+          {cancellable && (
+            <button
+              className="header-link danger no-print"
+              onClick={cancelRun}
+              disabled={cancelling}
+              title="Stop this run — halts the pipeline and any further AI work"
+            >
+              {cancelling ? "Cancelling…" : "Cancel run"}
+            </button>
+          )}
           {suggestions.length > 0 && (
             <button
               className="header-link no-print"
