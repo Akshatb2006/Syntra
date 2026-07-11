@@ -336,7 +336,11 @@ Output ONLY JSON (no prose), shape:
 
     const userPrompt = `SITE: ${input.siteUrl}
 Business: ${profile.industry}${profile.locationBased ? " (location-based)" : ""}
-Lighthouse: ${JSON.stringify(input.crawl.baseline.scores)}
+Lighthouse (mobile): ${JSON.stringify(input.crawl.baseline.scores)}${
+      input.crawl.baselineDesktop
+        ? `\nLighthouse (desktop): ${JSON.stringify(input.crawl.baselineDesktop.scores)}`
+        : ""
+    }
 
 DEFICITS (ranked strongest-first; cite by #index):
 

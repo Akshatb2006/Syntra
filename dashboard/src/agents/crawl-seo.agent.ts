@@ -137,7 +137,7 @@ export class CrawlSeoAgent extends BaseAgent<CrawlSeoInput, CrawlSeoOutput> {
         : "";
       const system = `You are the Crawl & SEO Audit Agent for an autonomous growth-engineering platform that works on websites in any industry.
 The target site is a ${businessProfile.industry} business${businessProfile.locationBased ? " that serves customers in specific locations" : ""}.
-You will be given the crawl output (pages, metadata, links, schema) and a baseline Lighthouse report.
+You will be given the crawl output (pages, metadata, links, schema) and baseline Lighthouse reports for both mobile and desktop.
 Produce a concise, prioritized audit narrative that names concrete weaknesses by file/route. Focus on:
 - metadata gaps (title, description, OG, Twitter, canonical),
 - structured data gaps (relevant schema.org types for this business: ${schemaList}, plus Organization, BreadcrumbList, FAQPage),
@@ -156,7 +156,18 @@ LIGHTHOUSE BASELINE (mobile):
 \`\`\`json
 ${JSON.stringify(baseline, null, 2).slice(0, 8000)}
 \`\`\`
+${
+  baselineDesktop
+    ? `
+LIGHTHOUSE BASELINE (desktop):
+\`\`\`json
+${JSON.stringify(baselineDesktop, null, 2).slice(0, 8000)}
+\`\`\`
 
+Note where mobile and desktop differ — e.g. a weakness that only shows on mobile
+(images, viewport, tap targets) vs one that affects both — and reflect that in the narrative.`
+    : ""
+}
 Use the tools only if a specific page needs deeper inspection. Then produce the audit narrative.`;
 
       // 2 rounds is enough for one optional page/Lighthouse drill-down before
