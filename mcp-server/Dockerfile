@@ -50,4 +50,9 @@ ENV WORKSPACE_ROOT=/data/workspaces
 EXPOSE 3100
 VOLUME ["/data"]
 
-CMD ["node", "--enable-source-maps", "mcp-server/dist/server.js"]
+# Run under tsx (bundled with mcp-server) rather than plain `node dist/…`.
+# @growth/shared is published as raw TS (its package.json exports point at
+# src/*.ts), so a plain-node run of the compiled dist can't resolve those
+# imports. tsx transpiles the workspace TS on the fly — same as `mcp:dev`.
+# `pnpm --filter … exec` runs with the mcp-server package dir as cwd.
+CMD ["pnpm", "--filter", "@growth/mcp-server", "exec", "tsx", "src/server.ts"]
