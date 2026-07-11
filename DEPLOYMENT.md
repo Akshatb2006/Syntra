@@ -356,27 +356,40 @@ If you're already standing up a persistent box for **MCP + worker**, hosting the
 
 ---
 
-## 10. Single-VM deploy — AWS EC2 + Docker (dashboard-only alpha)
+## 10. Single-VM deploy — AWS EC2 + Docker (full engine)
 
-The path for the gated alpha: **just the dashboard** (Google sign-in, onboarding,
-viewing runs) on a single **AWS EC2** instance, via Docker Compose with Caddy for
-automatic HTTPS. No MCP server, no worker, no LLM cost — the trial already locks
-`/connect` and `/runs/new`, so no pipeline runs.
+The alpha runs the **full engine** on one **AWS EC2** instance via Docker Compose,
+with Caddy for automatic HTTPS. Three containers:
 
-**Artifacts in this repo:** `dashboard/Dockerfile`, `docker-compose.yml`, `Caddyfile`,
-`.dockerignore`, `.env.deploy.example`.
+- **`dashboard`** — Next.js UI + Google sign-in; **runs the pipeline in-process**
+  (no separate worker container needed for a single-host deploy).
+- **`mcp`** — the crawl / SEO-audit engine (headless Playwright Chromium + Lighthouse).
+- **`caddy`** — reverse proxy, Let's Encrypt cert.
 
-**Cost with $100 credits:** a `t3.small` (2 GB RAM) is ~$15/mo → ~6 months of runway.
-The free-tier `t3.micro` (1 GB) also works **if you add a swap file** (§10.2) so the
-Next.js build doesn't OOM. Credits cover the VM only — API keys bill separately.
+A run flows: crawl + Lighthouse (mcp) → site understanding → demand + competitor
+intel → orchestrator (**writes the recommendations**) → enrichment → blueprint. This
+was verified end-to-end at **~6.5 min/run on t3.small + 2 GB swap** (memory stayed
+comfortable). The **"Develop → PR"** code-dispatch flow is *not* wired here — it needs
+the `claude` CLI in the mcp image + a GitHub token (see §10.9); the recommendations
+don't depend on it.
+
+**Artifacts in this repo:** `dashboard/Dockerfile`, `mcp-server/Dockerfile`,
+`docker-compose.yml`, `Caddyfile`, `.dockerignore`, `.env.deploy.example`.
+
+**Cost with $100 credits:** `t3.small` (2 GB) ≈ $19/mo → ~5 months of runway. Credits
+cover the **VM only** — every run also spends **Anthropic + Tavily** tokens (billed
+separately). On the newer AWS **Free Plan** you can't launch `t3.medium` (not
+free-tier-eligible); if t3.small gets tight, resize to **`c7i-flex.large`** (4 GB, which
+*is* free-plan-eligible) — ~4× the hourly cost, no paid-plan upgrade needed.
 
 ### 10.1 Launch the EC2 instance
 1. AWS Console → **EC2** → **Launch instance**.
 2. **Name:** `syntra-alpha`.
-3. **AMI:** Ubuntu Server 22.04 LTS (64-bit x86). *(For the cheaper arm64 `t4g.small`,
-   pick the arm64 AMI — the image is multi-arch and builds natively either way.)*
-4. **Instance type:** `t3.small` (recommended) or `t3.micro` (free-tier, needs swap).
+3. **AMI:** Ubuntu Server 22.04+ LTS (64-bit x86). *(Host OS version doesn't matter —
+   everything runs in containers with Node 22 baked in.)*
+4. **Instance type:** `t3.small` (2 GB — recommended minimum for the Chromium/Lighthouse load).
 5. **Key pair:** create one (e.g. `syntra-key`), download the `.pem`, keep it safe.
+   Store it **outside** the repo or ensure `*.pem` is gitignored — it's your SSH key.
 6. **Storage:** root volume **30 GB gp3**.
 7. **Network settings → Edit → Security group** — add three inbound rules:
 
@@ -388,19 +401,20 @@ Next.js build doesn't OOM. Credits cover the VM only — API keys bill separatel
 
    80/443 **must** be public or Caddy can't get a Let's Encrypt cert.
 8. **Launch instance.**
-9. **Elastic IP (so the IP survives reboots):** EC2 → **Elastic IPs** → *Allocate*,
-   then *Associate* it with the `syntra-alpha` instance. Note this IP.
+9. **Elastic IP (so the IP survives stop/reboot):** EC2 → **Elastic IPs** → *Allocate*,
+   then *Associate* it with the `syntra-alpha` instance. Note this IP. (It stays
+   attached across stop/start — needed for a stable DNS record.)
 
-### 10.2 SSH in + install Docker
+### 10.2 SSH in + install Docker + swap
 ```bash
 chmod 400 syntra-key.pem
 ssh -i syntra-key.pem ubuntu@<ELASTIC_IP>
 
 # on the VM
 sudo apt update && sudo apt install -y docker.io docker-compose-plugin git
-sudo usermod -aG docker $USER && newgrp docker
+sudo usermod -aG docker $USER && newgrp docker   # (or just prefix docker with sudo)
 
-# ONLY on t3.micro (1 GB) — 2 GB swap so the build doesn't OOM:
+# 2 GB swap — headroom for the build + Chromium/Lighthouse peaks on a 2 GB box:
 sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile
 sudo mkswap /swapfile && sudo swapon /swapfile
 echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
@@ -410,34 +424,99 @@ echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 Google OAuth won't accept a raw IP or `http`. Get a **free DuckDNS subdomain**:
 1. Go to <https://www.duckdns.org>, sign in (GitHub/Google).
 2. Create a subdomain, e.g. `syntra-alpha` → gives `syntra-alpha.duckdns.org`.
-3. Set its **current ip** field to your Elastic IP and click **update ip**.
+3. Set its **current ip** field to your **Elastic IP** and click **update ip**
+   (DuckDNS auto-fills your *browser's* IP — overwrite it with the server's Elastic IP).
 
 Caddy provisions the HTTPS cert automatically once DNS resolves and 80/443 are open.
 
-### 10.4 Configure + deploy
+### 10.4 Get the code onto the box
+If the GitHub repo is **public**, clone it:
 ```bash
-git clone https://github.com/Akshatb2006/Syntra.git syntra && cd syntra
-git checkout alpha
-
-cp .env.deploy.example .env                 # set DOMAIN=syntra-alpha.duckdns.org
-cp dashboard/.env.example dashboard/.env    # set AUTH_URL=https://$DOMAIN,
-                                            # AUTH_SECRET + SECRETS_ENC_KEY
-                                            # (openssl rand -hex 32 each)
-docker compose up -d --build                # builds dashboard, starts it + Caddy
-docker compose logs -f caddy                # watch for a successful cert
+git clone https://github.com/Akshatb2006/Syntra.git syntra && cd syntra && git checkout alpha
 ```
-`AUTH_URL` must be exactly `https://` + the same `DOMAIN` in `./.env`. Visit
-`https://$DOMAIN`. To smoke-test before Google is wired, set `DEV_LOGIN=1` in
-`dashboard/.env`, `docker compose up -d`, sign in via the dev bypass, then remove it.
+If the repo is **private** (the box has no GitHub creds → `git clone` fails), push the
+source from your laptop with **rsync** — excluding heavy/secret files:
+```bash
+# run on your Mac, from the repo root
+rsync -az --delete -e "ssh -i syntra-key.pem" \
+  --exclude=node_modules --exclude=.next --exclude=dist --exclude=build \
+  --exclude='*.pem' --exclude=.env --exclude=dashboard/.env --exclude=mcp-server/.env \
+  --exclude='*.db' --exclude=data --exclude=.DS_Store \
+  ./ ubuntu@<ELASTIC_IP>:~/syntra/
+```
+(Alternatively add a GitHub PAT or deploy key on the box so `git pull` works.)
 
-### 10.5 Wire Google (after the box is up — see §4.2)
-Set the redirect URI to `https://$DOMAIN/api/auth/callback/google` and add
-`https://$DOMAIN` to Authorized JavaScript origins, put the client id/secret in
-`dashboard/.env`, then `docker compose up -d` to reload.
+### 10.5 Configure the env files
+Two env files, both on the box, both `chmod 600` (they hold secrets):
 
-### 10.6 Operate
-- **Data** lives in the `db-data` volume (`/data/growth-engineer.db`). Back it up:
-  `docker compose exec dashboard sh -c 'cp /data/growth-engineer.db /data/backup-$(date +%F).db'` (or a host cron over the volume).
-- **Update:** `git pull && docker compose up -d --build`.
-- **arm64 note (`t4g` instances):** `better-sqlite3` builds in-image; the Dockerfile
-  includes `python3/make/g++` as a compile fallback if no prebuilt binary matches.
+**`./.env`** (compose-level):
+```bash
+DOMAIN=syntra-alpha.duckdns.org
+```
+
+**`dashboard/.env`** — auth + LLM + MCP connection. `MCP_BEARER_TOKEN` MUST match a
+token in `mcp-server/.env` `VALID_TOKENS`. Generate secrets with `openssl rand -hex 32`;
+generate the MCP token with `echo "tok_prod_$(openssl rand -hex 24)"`:
+```bash
+MCP_BASE_URL=http://mcp:3100                 # compose also sets this
+MCP_BEARER_TOKEN=tok_prod_<random>
+ANTHROPIC_API_KEY=sk-ant-...                 # generates the recommendations
+TAVILY_API_KEY=tvly-...                      # web-search steps (optional; stubs if absent)
+SQLITE_PATH=/data/growth-engineer.db
+SECRETS_ENC_KEY=<openssl rand -hex 32>
+AUTH_URL=https://syntra-alpha.duckdns.org    # exactly https:// + DOMAIN
+AUTH_SECRET=<openssl rand -hex 32>
+GOOGLE_CLIENT_ID=<from Google Cloud Console>
+GOOGLE_CLIENT_SECRET=<from Google Cloud Console>
+# DEV_LOGIN must NOT be set in production
+```
+
+**`mcp-server/.env`** — the MCP auth allowlist:
+```bash
+NODE_ENV=production
+PORT=3100
+VALID_TOKENS=tok_prod_<random>:syntra-dashboard   # same token as MCP_BEARER_TOKEN above
+LOG_DIR=/data/logs
+WORKSPACE_ROOT=/data/workspaces
+```
+
+### 10.6 Build + deploy
+```bash
+sudo docker compose up -d --build     # builds dashboard + mcp (Chromium download — slow first time)
+sudo docker compose logs -f caddy     # watch for "certificate obtained successfully"
+sudo docker compose ps                # all three: dashboard, mcp, caddy → Up
+sudo docker compose logs mcp | tail   # expect: server_start … plugins:[…crawl,lighthouse…]
+```
+Visit `https://$DOMAIN`. To smoke-test before Google is wired, set `DEV_LOGIN=1` in
+`dashboard/.env`, `sudo docker compose up -d dashboard`, sign in via the dev bypass,
+then remove it and reload.
+
+### 10.7 Wire Google (see §4.2 for the console walkthrough)
+Redirect URI **exactly** `https://$DOMAIN/api/auth/callback/google`; add `https://$DOMAIN`
+to Authorized JavaScript origins; scopes `openid email profile` are non-sensitive (no
+Google verification). Keep the consent screen in **Testing** and add yourself under
+**Audience → Test users**. Put the client id/secret in `dashboard/.env`, then
+`sudo docker compose up -d dashboard`.
+
+### 10.8 Operate
+- **Verify a run:** start an audit in the UI and tail
+  `sudo docker compose logs -f dashboard mcp` — you'll see `crawl_done`,
+  `lighthouse_done`, `agent.orchestrator`, `agent.enrichment`, then the top-level
+  `pipeline.run` span end with `status:"ok"`.
+- **Data** lives in the `db-data` volume (`/data/growth-engineer.db`, WAL mode). Back it
+  up over the volume, or `sudo docker compose exec dashboard sh -c 'cp /data/growth-engineer.db /data/backup-$(date +%F).db'`.
+- **Update:** rsync (or `git pull`) → `sudo docker compose up -d --build`. A CMD/env-only
+  change rebuilds instantly (cached layers); the db volume survives.
+
+### 10.9 Notes & gotchas
+- **`@growth/shared` is raw TypeScript** (its `package.json` exports point at `src/*.ts`).
+  Next.js transpiles it for the dashboard, but the mcp server can't run it under plain
+  `node dist/…` (→ `ERR_MODULE_NOT_FOUND`). `mcp-server/Dockerfile` therefore runs it
+  under **`tsx`** (`tsx src/server.ts`), which transpiles the workspace TS on the fly.
+- **Lighthouse Chromium:** the image points `CHROME_PATH` at Playwright's Chromium so
+  `chrome-launcher` (Lighthouse) and the crawl plugin share one browser binary.
+- **Omium tracing** is optional; leave `OMIUM_*` unset. A bad/blocked endpoint just spams
+  `omium_flush_rejected` warnings (non-fatal) — the pipeline ignores tracing failures.
+- **Enable "Develop → PR" later:** add `RUN npm i -g @anthropic-ai/claude-code` to
+  `mcp-server/Dockerfile`, set `ANTHROPIC_API_KEY` in `mcp-server/.env` (so the CLI is
+  authed) and a `GITHUB_TOKEN`. Then the `code-mod` agent's dispatch can open real PRs.
