@@ -8,6 +8,7 @@ import { AnthropicClient } from "@/infra/llm/anthropic.client";
 import { CodeModAgent } from "@/agents/code-mod.agent";
 import { parseRepoFullName } from "@/orchestration/pipeline";
 import { executionUnlocked } from "@/lib/plan";
+import { requireOwnedRun } from "@/lib/auth/guard";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +29,9 @@ interface RouteCtx {
 
 export async function POST(req: NextRequest, ctx: RouteCtx) {
   const { id: runId, sid: suggestionId } = await ctx.params;
+  // Ownership first: only the run's owner may dispatch its suggestions.
+  const guard = await requireOwnedRun(runId);
+  if (!guard.ok) return guard.res;
   try {
     // Entitlement gate: the audit is free, execution is paid. Enforced here so
     // the lock can't be bypassed from the client.
@@ -49,8 +53,7 @@ export async function POST(req: NextRequest, ctx: RouteCtx) {
       );
     }
 
-    const run = sqliteStore.runs.get(runId);
-    if (!run) return NextResponse.json({ error: "Run not found" }, { status: 404 });
+    const run = guard.run; // already loaded + ownership-checked above
 
     const suggestion = sqliteStore.suggestions
       .byRun(runId)

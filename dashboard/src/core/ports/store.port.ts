@@ -7,10 +7,33 @@ import type {
 } from "@growth/shared/types";
 import type { Credentials } from "@growth/shared/schemas";
 
+/** An authenticated user (created on first Google sign-in). */
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  image: string | null;
+  company: string | null;
+  website: string | null;
+  role: string | null;
+  onboarded: boolean;
+  createdAt: number;
+}
+
+export interface UsersRepoPort {
+  /** Find by Google email, creating the user on first sign-in. Returns the user. */
+  upsertByEmail(input: { email: string; name: string; image: string | null }): User;
+  get(id: string): User | undefined;
+  getByEmail(email: string): User | undefined;
+  /** Save onboarding answers and flip `onboarded` to true. */
+  setOnboarding(id: string, fields: { company: string; website?: string | null; role: string }): void;
+}
+
 export interface RunsRepoPort {
   insert(run: Run): void;
   get(runId: string): Run | undefined;
-  list(limit?: number): Run[];
+  /** When `owner` is given, returns only that user's runs (per-user isolation). */
+  list(limit?: number, owner?: string): Run[];
   patchStatus(runId: string, status: RunStatus): void;
   patch(runId: string, fields: Partial<Run>): void;
   /**
@@ -59,6 +82,7 @@ export interface GeoCacheRepoPort {
 
 export interface StorePort {
   runs: RunsRepoPort;
+  users: UsersRepoPort;
   steps: StepsRepoPort;
   traces: TracesRepoPort;
   suggestions: SuggestionsRepoPort;

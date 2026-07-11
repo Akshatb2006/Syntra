@@ -1,6 +1,9 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { sqliteStore } from "@/infra/store/sqlite";
+import { getSession } from "@/lib/auth/server";
 import { RunStatusBadge } from "@/ui/components/StatusBadge";
+import { LockedFeature } from "@/ui/components/LockedFeature";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -13,8 +16,11 @@ function timeAgo(ms: number): string {
   return `${Math.floor(d / 86_400_000)}d ago`;
 }
 
-export default function RunsIndexPage() {
-  const runs = sqliteStore.runs.list(50);
+export default async function RunsIndexPage() {
+  const session = await getSession();
+  if (!session) redirect("/");
+  // Only this user's runs — never anyone else's.
+  const runs = sqliteStore.runs.list(50, session.uid);
   return (
     <div className="page-shell">
       <div className="section-head">
@@ -25,7 +31,8 @@ export default function RunsIndexPage() {
             preview deployment — autonomously.
           </p>
         </div>
-        <Link href="/runs/new">
+        {/* Free trial: new runs aren't provisioned yet — send them to the dashboard. */}
+        <Link href="/">
           <button className="btn btn-primary">+ New run</button>
         </Link>
       </div>
@@ -34,9 +41,9 @@ export default function RunsIndexPage() {
         <div className="empty-state">
           <div className="empty-title">No runs yet</div>
           <div className="empty-desc">
-            <Link href="/connect">Connect your credentials</Link>{" "}
+            <LockedFeature label="Connect your credentials" variant="inline" align="left" />{" "}
             then{" "}
-            <Link href="/runs/new">start your first autonomous run</Link>.
+            <Link href="/">start your first autonomous run</Link>.
           </div>
         </div>
       ) : (

@@ -47,5 +47,11 @@ export function getDb(): Db {
   // Buildable page blueprint (title/sections/keywords) for content-gap rows.
   // Nullable — non-gap or un-blueprinted rows render without it.
   safeAlter("ALTER TABLE suggestions ADD COLUMN blueprint_json TEXT");
+  // Run ownership for per-user isolation (added with auth). Nullable — pre-auth
+  // runs are unowned and invisible to every signed-in user.
+  safeAlter("ALTER TABLE runs ADD COLUMN owner TEXT");
+  // Index created here (not in SCHEMA_SQL) so it runs only after the owner column
+  // exists — on a pre-auth DB the column is added by the ALTER just above.
+  db.exec("CREATE INDEX IF NOT EXISTS idx_runs_owner ON runs(owner, created_at DESC)");
   return db;
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sqliteStore } from "@/infra/store/sqlite";
+import { requireOwnedRun } from "@/lib/auth/guard";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -19,15 +20,16 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const run = sqliteStore.runs.get(id);
-  if (!run) return NextResponse.json({ error: "Run not found" }, { status: 404 });
+  const g = await requireOwnedRun(id);
+  if (!g.ok) return g.res;
+  const { run } = g;
 
   const creds = sqliteStore.secrets.get(run.credentialsRef);
   if (!creds?.vercelToken || !creds.vercelProjectId) {
-    return NextResponse.json(
-      { error: "Vercel credentials not configured" },
-      { status: 412 },
-    );
+    // Not an error — this run simply has no Vercel integration configured.
+    // Return an empty deployment so the client hides the chip without logging
+    // a failed request on every poll.
+    return NextResponse.json({ deployment: null });
   }
 
   const url = new URL("https://api.vercel.com/v6/deployments");

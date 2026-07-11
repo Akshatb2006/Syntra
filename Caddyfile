@@ -1,0 +1,7 @@
+# Automatic HTTPS for the dashboard. {$DOMAIN} is injected from compose (./.env).
+# Caddy provisions + renews a Let's Encrypt cert as long as DOMAIN's A/AAAA
+# record points at this VM and ports 80/443 are open to the internet.
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy dashboard:3000
+}

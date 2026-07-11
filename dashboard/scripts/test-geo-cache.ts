@@ -101,6 +101,7 @@ async function main() {
   const TEST_RUN_ID = "run_geo_cache_probe";
   sqliteStore.runs.insert({
     id: TEST_RUN_ID,
+    owner: null,
     input: {
       siteUrl: "https://test.example.com",
       repoUrl: "https://github.com/x/y",

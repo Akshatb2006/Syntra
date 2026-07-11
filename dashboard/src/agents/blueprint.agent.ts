@@ -1,6 +1,7 @@
 import { BaseAgent, type AgentContext, type ToolDef } from "./base";
 import type { SpanHandle } from "@/core/ports/tracer.port";
 import { AGENTS } from "@growth/shared/constants";
+import { modelFor } from "@/lib/models";
 import type { BusinessProfile, Suggestion, SuggestionBlueprint } from "@growth/shared/types";
 
 export interface BlueprintInput {
@@ -35,7 +36,7 @@ function isBuildable(s: Suggestion): boolean {
 export class BlueprintAgent extends BaseAgent<BlueprintInput, BlueprintOutput> {
   readonly name = "blueprint" as const;
   readonly title = AGENTS.blueprint.displayName;
-  readonly model = AGENTS.blueprint.model;
+  readonly model = modelFor("blueprint");
 
   async run(ctx: AgentContext, input: BlueprintInput): Promise<BlueprintOutput> {
     const buildable = input.suggestions.filter(isBuildable);

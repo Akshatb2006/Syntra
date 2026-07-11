@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { sqliteStore } from "@/infra/store/sqlite";
+import { requireOwnedRun } from "@/lib/auth/guard";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -10,8 +11,9 @@ interface RouteCtx {
 
 export async function GET(_req: NextRequest, ctx: RouteCtx) {
   const { id } = await ctx.params;
-  const run = sqliteStore.runs.get(id);
-  if (!run) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const g = await requireOwnedRun(id);
+  if (!g.ok) return g.res;
+  const { run } = g;
   const steps = sqliteStore.steps.byRun(id);
   const traces = sqliteStore.traces.byRun(id);
   const suggestions = sqliteStore.suggestions.byRun(id);

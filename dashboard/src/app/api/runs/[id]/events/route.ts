@@ -1,6 +1,7 @@
 import { type NextRequest } from "next/server";
 import { eventBus } from "@/infra/eventbus/local.bus";
 import { ensureRuntime } from "@/orchestration/job-runner";
+import { requireOwnedRun } from "@/lib/auth/guard";
 import type { PlatformEvent } from "@growth/shared/types";
 
 export const dynamic = "force-dynamic";
@@ -16,8 +17,11 @@ interface RouteCtx {
  * passed through too so the UI can show external triggers.
  */
 export async function GET(req: NextRequest, ctx: RouteCtx) {
-  ensureRuntime();
   const { id } = await ctx.params;
+  // Don't stream another user's run events.
+  const g = await requireOwnedRun(id);
+  if (!g.ok) return g.res;
+  ensureRuntime();
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
