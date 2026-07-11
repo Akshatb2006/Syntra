@@ -26,10 +26,10 @@ export async function GET(
 
   const creds = sqliteStore.secrets.get(run.credentialsRef);
   if (!creds?.vercelToken || !creds.vercelProjectId) {
-    return NextResponse.json(
-      { error: "Vercel credentials not configured" },
-      { status: 412 },
-    );
+    // Not an error — this run simply has no Vercel integration configured.
+    // Return an empty deployment so the client hides the chip without logging
+    // a failed request on every poll.
+    return NextResponse.json({ deployment: null });
   }
 
   const url = new URL("https://api.vercel.com/v6/deployments");

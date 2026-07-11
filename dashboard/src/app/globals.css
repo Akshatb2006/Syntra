@@ -1339,3 +1339,157 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .status-row:last-child { border-bottom: none; }
 .status-row-label { color: var(--fg-muted); font-weight: 500; }
 .status-row-value { display: flex; align-items: center; gap: 12px; }
+
+/* ============================================================
+   PRINT / PDF EXPORT
+   The run detail page enters "print mode" (all suggestions expanded), then
+   calls window.print(). These rules strip the app chrome — header, side rails,
+   tabs, live log, action buttons — and let the Results pane flow across pages so
+   the exported PDF is a full-detail report that mirrors the on-screen cards.
+   ============================================================ */
+
+/* Print-only elements are hidden during normal interactive use. */
+.print-only { display: none; }
+
+@media print {
+  /* Render backgrounds, pills and priority bars in the PDF exactly as on screen. */
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+  /* Force the light palette for export, regardless of the active theme. Printing
+     in dark mode drops the near-black page background but keeps the light text,
+     producing faint, unreadable "ghost" text on white paper. Re-declaring the
+     light values here (same specificity as the theme blocks, but later in source
+     order) guarantees dark text on a white page in the PDF. */
+  html[data-theme="dark"], html[data-theme="light"], :root {
+    color-scheme: light;
+    --bg: #ffffff;
+    --bg-elev: #ffffff;
+    --surface: #ffffff;
+    --surface-2: #f1f1ea;
+    --surface-3: #e8e8de;
+    --border: #dfdfd4;
+    --border-2: #cacabe;
+    --fg: #111114;
+    --fg-muted: #4a4c48;
+    --fg-dim: #73756e;
+    --accent: #0d9488;
+    --accent-fg: #ecfdf5;
+    --accent-strong: #0f766e;
+    --accent-soft: #ecfdf5;
+    --accent-soft-2: #ccfbf1;
+    --warn: #b45309;
+    --warn-soft: #fef3c7;
+    --warn-border: #fde68a;
+    --danger: #be123c;
+    --danger-soft: #ffe4e6;
+    --danger-border: #fecdd3;
+    --success: #15803d;
+    --success-soft: #dcfce7;
+    --success-border: #bbf7d0;
+    --badge-neutral-bg: #ecece4;
+    --badge-neutral-fg: #262626;
+    --badge-muted-bg: #f2f2ec;
+    --badge-muted-fg: #73736c;
+    --badge-accent-bg: #ccfbf1;
+    --badge-accent-fg: #0f766e;
+    --badge-warn-bg: #fef3c7;
+    --badge-warn-fg: #92400e;
+    --badge-danger-bg: #ffe4e6;
+    --badge-danger-fg: #be123c;
+    --badge-success-bg: #dcfce7;
+    --badge-success-fg: #166534;
+  }
+
+  /* The dark-theme logo is inverted to appear light; undo that on white paper. */
+  [data-theme="dark"] .brand-mark,
+  [data-theme="dark"] .print-report-brand img { filter: none !important; }
+
+  html, body { height: auto !important; overflow: visible !important; background: #ffffff !important; }
+
+  /* Collapse the fixed 100vh grid shell into a normal flowing document. */
+  .app,
+  .app > *:not(.header),
+  .body-grid,
+  .center,
+  .center-scroll,
+  .pane {
+    display: block !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .center-scroll { min-height: 0 !important; }
+  .pane { padding: 0 !important; }
+
+  /* Chrome that has no place in a printed report. */
+  .header,
+  .left,
+  .right,
+  .tabs,
+  .no-print,
+  .sug-actions,
+  .sug-chevron,
+  .recon-chip { display: none !important; }
+
+  /* Only the Results pane prints; guarantee it shows even if display was none. */
+  .pane { display: none !important; }
+  .pane.active { display: block !important; }
+
+  .print-only { display: block; }
+
+  /* Let a finding flow across a page boundary. Forcing whole cards to stay
+     intact pushes any card taller than the remaining space onto the next page,
+     leaving a large blank band at the bottom of the previous one. */
+  .sug-card { break-inside: auto; page-break-inside: auto; }
+  .sug-group-head { break-after: avoid; page-break-after: avoid; }
+
+  /* Disable reveal/pulse animations so nothing prints mid-transition (faded). */
+  *, .sug-detail { animation: none !important; transition: none !important; }
+
+  /* Tighten the vertical rhythm for a dense paper report. The on-screen spacing
+     is airier than a printed document needs, which reads as big gaps between
+     blocks of text in the PDF. */
+  .sug-group { margin-bottom: 14px !important; }
+  .sug-group-head { margin-bottom: 8px !important; }
+  .sug-card { padding: 12px 14px !important; margin-bottom: 8px !important; }
+  .sug-detail { margin-top: 8px !important; padding-top: 8px !important; }
+  .sug-issue,
+  .sug-evidence,
+  .sug-impl { margin-top: 6px !important; }
+  .sug-opportunity,
+  .sug-blueprint,
+  .sug-insight { margin-top: 8px !important; padding: 9px 11px !important; }
+  .sug-meta { margin-top: 8px !important; }
+  .print-report-head { margin-bottom: 16px !important; padding-bottom: 12px !important; }
+
+  /* Cover header for the exported document. */
+  .print-report-head {
+    margin: 0 0 24px;
+    padding: 0 0 18px;
+    border-bottom: 2px solid var(--border-2);
+  }
+  .print-report-brand {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--fg);
+  }
+  .print-report-brand img { width: 22px; height: 22px; }
+  .print-report-head h1 {
+    margin: 12px 0 8px;
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--fg);
+  }
+  .print-report-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    font-size: 12px;
+    color: var(--fg-muted);
+  }
+}

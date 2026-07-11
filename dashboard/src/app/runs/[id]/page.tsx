@@ -44,6 +44,10 @@ export default function RunDetailPage({
   const { events, connected } = useSse<PlatformEvent>(`/api/runs/${id}/events`);
   const [activeTab, setActiveTab] = useState("results");
   const [mounted, setMounted] = useState(false);
+  // While true, every suggestion renders expanded and the layout collapses to a
+  // clean single column so window.print() produces a full-detail PDF that mirrors
+  // the on-screen cards exactly.
+  const [printing, setPrinting] = useState(false);
   const [latestDeployment, setLatestDeployment] = useState<{
     url: string;
     state: string;
@@ -53,6 +57,29 @@ export default function RunDetailPage({
   } | null>(null);
 
   useEffect(() => { setMounted(true); }, []);
+
+  // Print orchestration. We can't rely on CSS alone to reveal collapsed card
+  // detail (it isn't in the DOM until a card is open), so entering "print mode"
+  // forces the Results tab + expands every card, waits for React to paint, then
+  // opens the browser print dialog. `afterprint` restores the interactive view.
+  function downloadPdf() {
+    setActiveTab("results");
+    setPrinting(true);
+  }
+
+  useEffect(() => {
+    if (!printing) return;
+    const restore = () => setPrinting(false);
+    window.addEventListener("afterprint", restore);
+    // Two frames so the expanded cards + print layout are painted before print.
+    const raf = requestAnimationFrame(() =>
+      requestAnimationFrame(() => window.print()),
+    );
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("afterprint", restore);
+    };
+  }, [printing]);
 
   async function refresh() {
     const r = await fetch(`/api/runs/${id}`);
@@ -159,6 +186,15 @@ export default function RunDetailPage({
             <span className="dot pulse-soft"></span>
             <span>{run.status}</span>
           </div>
+          {suggestions.length > 0 && (
+            <button
+              className="header-link no-print"
+              onClick={downloadPdf}
+              title="Download a full-detail PDF of every suggestion, matching this view"
+            >
+              Download PDF <span className="ext">↓</span>
+            </button>
+          )}
           {run.prUrl && <a className="header-link primary" href={run.prUrl} target="_blank" rel="noreferrer">PR <span className="ext">↗</span></a>}
           {latestDeployment && (
             <a
@@ -176,7 +212,7 @@ export default function RunDetailPage({
         portalTarget
       )}
 
-      <div className="body-grid">
+      <div className={`body-grid${printing ? " printing" : ""}`}>
         <aside className="left">
           <div className="label">Pipeline</div>
           {/* We reuse Timeline for the left pane summary, we will adapt Timeline.tsx to render the step-rail */}
@@ -231,6 +267,24 @@ export default function RunDetailPage({
                 <TraceTree spans={traces} />
              </section>
              <section className={`pane ${activeTab === 'results' ? 'active' : ''}`}>
+                {/* Print-only cover header — gives the exported PDF a titled,
+                    branded top instead of a bare card list. Hidden on screen. */}
+                <div className="print-report-head print-only">
+                  <div className="print-report-brand">
+                    <img src="/syntra-logo.png" alt="Syntra" />
+                    <span>Syntra</span>
+                  </div>
+                  <h1>SEO Growth Report</h1>
+                  <div className="print-report-meta">
+                    <span>{hostname}</span>
+                    <span>·</span>
+                    <span className="mono">{run.id}</span>
+                    <span>·</span>
+                    <span>{suggestions.length} suggestion{suggestions.length === 1 ? "" : "s"}</span>
+                    <span>·</span>
+                    <span>{new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}</span>
+                  </div>
+                </div>
                 <SearchHealth
                   baseline={run.baselineLighthouse}
                   opportunities={suggestions.length}
@@ -253,7 +307,7 @@ export default function RunDetailPage({
                     Pro feature.
                   </div>
                 )}
-                <SuggestionList suggestions={suggestions} onDevelop={(s) => setDevelopTarget(s)} />
+                <SuggestionList suggestions={suggestions} onDevelop={(s) => setDevelopTarget(s)} forceExpanded={printing} />
              </section>
              <section className={`pane ${activeTab === 'lighthouse' ? 'active' : ''}`}>
                 <LighthouseDelta baseline={run.baselineLighthouse} after={run.afterLighthouse} />

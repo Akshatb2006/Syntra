@@ -10,6 +10,12 @@ import type {
 interface Props {
   suggestions: Suggestion[];
   onDevelop?: (suggestion: Suggestion) => void;
+  /**
+   * Force every card into its expanded/detail state regardless of user toggles.
+   * Used when rendering for print/PDF so the export shows the full detail of
+   * each finding, not just the collapsed teaser.
+   */
+  forceExpanded?: boolean;
 }
 
 /**
@@ -329,7 +335,7 @@ function teaser(s: Suggestion): string {
   return t.length > 150 ? `${t.slice(0, 149)}…` : t;
 }
 
-export function SuggestionList({ suggestions, onDevelop }: Props) {
+export function SuggestionList({ suggestions, onDevelop, forceExpanded = false }: Props) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggle = (id: string) =>
     setExpanded((prev) => {
@@ -370,7 +376,7 @@ export function SuggestionList({ suggestions, onDevelop }: Props) {
           <span className="rule"></span>
         </div>
         {items.map((s) => {
-          const isOpen = expanded.has(s.id);
+          const isOpen = forceExpanded || expanded.has(s.id);
           return (
             <div
               key={s.id}
