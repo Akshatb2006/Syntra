@@ -356,55 +356,88 @@ If you're already standing up a persistent box for **MCP + worker**, hosting the
 
 ---
 
-## 10. Free single-VM deploy — Oracle Cloud + Docker (dashboard-only alpha)
+## 10. Single-VM deploy — AWS EC2 + Docker (dashboard-only alpha)
 
-The cheapest real path for the gated alpha: **just the dashboard** (Google sign-in,
-onboarding, viewing runs) on an **Oracle Cloud Always Free** VM, via Docker Compose
-with Caddy for automatic HTTPS. No MCP server, no worker, no LLM cost — the trial
-already locks `/connect` and `/runs/new`, so no pipeline runs.
+The path for the gated alpha: **just the dashboard** (Google sign-in, onboarding,
+viewing runs) on a single **AWS EC2** instance, via Docker Compose with Caddy for
+automatic HTTPS. No MCP server, no worker, no LLM cost — the trial already locks
+`/connect` and `/runs/new`, so no pipeline runs.
 
 **Artifacts in this repo:** `dashboard/Dockerfile`, `docker-compose.yml`, `Caddyfile`,
 `.dockerignore`, `.env.deploy.example`.
 
-### 10.1 Provision the VM
-- Oracle Cloud → create an **Always Free** instance. Prefer **Ampere A1 (arm64)** —
-  the image is multi-arch and builds natively on the box. Ubuntu 22.04+.
-- **Open ingress 80 + 443** in **two** places (Oracle blocks both by default):
-  1. VCN **Security List** (or Network Security Group): add ingress rules for
-     TCP 80 and 443 from `0.0.0.0/0`.
-  2. The instance firewall: `sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT` and the same for 443, then `sudo netfilter-persistent save` (Oracle Ubuntu images ship restrictive iptables).
+**Cost with $100 credits:** a `t3.small` (2 GB RAM) is ~$15/mo → ~6 months of runway.
+The free-tier `t3.micro` (1 GB) also works **if you add a swap file** (§10.2) so the
+Next.js build doesn't OOM. Credits cover the VM only — API keys bill separately.
 
-### 10.2 Domain (required for Google sign-in)
-Google OAuth won't accept a raw IP or http. Point a domain's A/AAAA record at the
-VM's public IP. Free option: a **DuckDNS** subdomain. Caddy gets the cert
-automatically once DNS resolves and 80/443 are open.
+### 10.1 Launch the EC2 instance
+1. AWS Console → **EC2** → **Launch instance**.
+2. **Name:** `syntra-alpha`.
+3. **AMI:** Ubuntu Server 22.04 LTS (64-bit x86). *(For the cheaper arm64 `t4g.small`,
+   pick the arm64 AMI — the image is multi-arch and builds natively either way.)*
+4. **Instance type:** `t3.small` (recommended) or `t3.micro` (free-tier, needs swap).
+5. **Key pair:** create one (e.g. `syntra-key`), download the `.pem`, keep it safe.
+6. **Storage:** root volume **30 GB gp3**.
+7. **Network settings → Edit → Security group** — add three inbound rules:
 
-### 10.3 Install Docker + deploy
+   | Type | Port | Source |
+   |------|------|--------|
+   | SSH   | 22  | My IP |
+   | HTTP  | 80  | Anywhere `0.0.0.0/0` |
+   | HTTPS | 443 | Anywhere `0.0.0.0/0` |
+
+   80/443 **must** be public or Caddy can't get a Let's Encrypt cert.
+8. **Launch instance.**
+9. **Elastic IP (so the IP survives reboots):** EC2 → **Elastic IPs** → *Allocate*,
+   then *Associate* it with the `syntra-alpha` instance. Note this IP.
+
+### 10.2 SSH in + install Docker
 ```bash
+chmod 400 syntra-key.pem
+ssh -i syntra-key.pem ubuntu@<ELASTIC_IP>
+
 # on the VM
-curl -fsSL https://get.docker.com | sh
+sudo apt update && sudo apt install -y docker.io docker-compose-plugin git
 sudo usermod -aG docker $USER && newgrp docker
 
-git clone <your-repo-url> syntra && cd syntra
+# ONLY on t3.micro (1 GB) — 2 GB swap so the build doesn't OOM:
+sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile
+sudo mkswap /swapfile && sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+```
 
-cp .env.deploy.example .env                 # set DOMAIN=app.yourdomain.com
+### 10.3 Domain (required for Google sign-in — free, no purchase)
+Google OAuth won't accept a raw IP or `http`. Get a **free DuckDNS subdomain**:
+1. Go to <https://www.duckdns.org>, sign in (GitHub/Google).
+2. Create a subdomain, e.g. `syntra-alpha` → gives `syntra-alpha.duckdns.org`.
+3. Set its **current ip** field to your Elastic IP and click **update ip**.
+
+Caddy provisions the HTTPS cert automatically once DNS resolves and 80/443 are open.
+
+### 10.4 Configure + deploy
+```bash
+git clone https://github.com/Akshatb2006/Syntra.git syntra && cd syntra
+git checkout alpha
+
+cp .env.deploy.example .env                 # set DOMAIN=syntra-alpha.duckdns.org
 cp dashboard/.env.example dashboard/.env    # set AUTH_URL=https://$DOMAIN,
                                             # AUTH_SECRET + SECRETS_ENC_KEY
                                             # (openssl rand -hex 32 each)
-docker compose up -d --build                # builds dashboard, starts + Caddy
-docker compose logs -f dashboard            # watch boot
+docker compose up -d --build                # builds dashboard, starts it + Caddy
+docker compose logs -f caddy                # watch for a successful cert
 ```
-Visit `https://$DOMAIN`. To smoke-test before Google is wired, set `DEV_LOGIN=1`
-in `dashboard/.env`, `docker compose up -d`, sign in via the dev bypass, then
-remove it.
+`AUTH_URL` must be exactly `https://` + the same `DOMAIN` in `./.env`. Visit
+`https://$DOMAIN`. To smoke-test before Google is wired, set `DEV_LOGIN=1` in
+`dashboard/.env`, `docker compose up -d`, sign in via the dev bypass, then remove it.
 
-### 10.4 Wire Google (after the box is up — see §4.2)
-Set the redirect URI to `https://$DOMAIN/api/auth/callback/google`, put the
-client id/secret in `dashboard/.env`, then `docker compose up -d` to reload.
+### 10.5 Wire Google (after the box is up — see §4.2)
+Set the redirect URI to `https://$DOMAIN/api/auth/callback/google` and add
+`https://$DOMAIN` to Authorized JavaScript origins, put the client id/secret in
+`dashboard/.env`, then `docker compose up -d` to reload.
 
-### 10.5 Operate
+### 10.6 Operate
 - **Data** lives in the `db-data` volume (`/data/growth-engineer.db`). Back it up:
   `docker compose exec dashboard sh -c 'cp /data/growth-engineer.db /data/backup-$(date +%F).db'` (or a host cron over the volume).
 - **Update:** `git pull && docker compose up -d --build`.
-- **arm64 note:** `better-sqlite3` builds in-image; the Dockerfile includes
-  `python3/make/g++` as a compile fallback if no prebuilt binary matches.
+- **arm64 note (`t4g` instances):** `better-sqlite3` builds in-image; the Dockerfile
+  includes `python3/make/g++` as a compile fallback if no prebuilt binary matches.

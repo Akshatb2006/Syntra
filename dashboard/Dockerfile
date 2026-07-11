@@ -7,8 +7,8 @@
 FROM node:22-bookworm-slim
 
 # Toolchain so better-sqlite3 can compile from source if no prebuilt binary
-# matches the platform (Oracle's free tier is arm64 — prebuilts usually exist,
-# this is just a safety net). Removed from the final layer to keep size down.
+# matches the platform (arm64 t4g instances — prebuilts usually exist, this is
+# just a safety net). Removed from the final layer to keep size down.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends python3 make g++ ca-certificates \
  && rm -rf /var/lib/apt/lists/*

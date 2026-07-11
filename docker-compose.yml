@@ -1,4 +1,4 @@
-# Dashboard-only alpha — single VM (e.g. Oracle Cloud Always Free) + Docker.
+# Dashboard-only alpha — single VM (AWS EC2, e.g. t3.small) + Docker.
 # Two containers: the Next.js dashboard and a Caddy reverse proxy that gets
 # automatic HTTPS from Let's Encrypt (required: Google OAuth + secure cookies
 # need a real https domain). Set DOMAIN in ./.env (see .env.deploy.example).
