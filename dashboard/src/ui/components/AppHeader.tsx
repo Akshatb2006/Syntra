@@ -12,7 +12,7 @@ export function AppHeader() {
   return (
     <header className="header">
       <div className="header-brand">
-        <img className="brand-mark" src="/syntra-logo.png" alt="Syntra logo" />
+        <img className="brand-mark" src="/syntra-logo.png" alt="Syntra logo" width={256} height={181} />
         <div className="brand-text">Syntra</div>
       </div>
       <nav className="nav">

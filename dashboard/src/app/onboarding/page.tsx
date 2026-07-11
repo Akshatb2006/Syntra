@@ -55,7 +55,7 @@ export default async function OnboardingPage({
 
       <form action={saveOnboarding} className="onb-card">
         <div className="onb-brand">
-          <img className="onb-mark" src="/syntra-logo.png" alt="" />
+          <img className="onb-mark" src="/syntra-logo.png" alt="" width={256} height={181} />
           <span>Syntra</span>
         </div>
 

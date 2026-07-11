@@ -2,7 +2,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { HeroAuditForm } from "@/ui/components/HeroAuditForm";
 import { ThemeToggle } from "@/ui/components/ThemeToggle";
-import { LandingMotion } from "@/ui/components/LandingMotion";
+import { LandingMotionLazy } from "@/ui/components/LandingMotionLazy";
 import { StartTrialButton } from "@/ui/components/StartTrialButton";
 import { getSession } from "@/lib/auth/server";
 import "./landing.css";
@@ -38,7 +38,7 @@ export default async function LandingPage({
 
   return (
     <>
-    <LandingMotion />
+    <LandingMotionLazy />
     {authError && (
       <div className="lp-auth-toast" role="alert">
         {AUTH_ERRORS[authError] ?? "Something went wrong signing in. Please try again."}
@@ -52,7 +52,7 @@ export default async function LandingPage({
       <nav className="lp-nav">
         <div className="container nav-inner">
           <div className="lp-brand">
-            <img className="lp-brand-mark" src="/syntra-logo.png" alt="Syntra logo" />
+            <img className="lp-brand-mark" src="/syntra-logo.png" alt="Syntra logo" width={256} height={181} />
             <div className="lp-brand-text">Syntra</div>
           </div>
           <div className="nav-links">
@@ -788,7 +788,7 @@ export default async function LandingPage({
           <div className="foot-grid">
             <div className="foot-brand">
               <div className="lp-brand">
-                <img className="lp-brand-mark" src="/syntra-logo.png" alt="Syntra logo" />
+                <img className="lp-brand-mark" src="/syntra-logo.png" alt="Syntra logo" width={256} height={181} />
                 <div className="lp-brand-text">Syntra</div>
               </div>
               <p>
