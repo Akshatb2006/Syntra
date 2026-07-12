@@ -39,6 +39,14 @@ const schema = z.object({
   // Comma-separated emails exempt from the cap (e.g. your own admin account so
   // you can keep testing). Case-insensitive. Empty = everyone is capped.
   RUN_LIMIT_EXEMPT_EMAILS: z.string().optional(),
+  // --- Alpha access gating ---
+  // Comma-separated admin emails: they see the approvals page, can approve/reject
+  // requests, and bypass the access gate + run cap. Case-insensitive.
+  ADMIN_EMAILS: z.string().optional(),
+  // Acceptance email on approval (optional). Uses Resend's REST API (zero-dep).
+  // If either is unset, approval still works — it just skips the email.
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().optional(),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -76,4 +84,12 @@ export const env = {
       .map((e) => e.trim().toLowerCase())
       .filter(Boolean),
   ),
+  adminEmails: new Set(
+    (parsed.data.ADMIN_EMAILS ?? "")
+      .split(",")
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean),
+  ),
+  resendApiKey: parsed.data.RESEND_API_KEY ?? null,
+  emailFrom: parsed.data.EMAIL_FROM ?? null,
 } as const;

@@ -1,4 +1,4 @@
-import type { User, UsersRepoPort } from "@/core/ports/store.port";
+import type { AccessStatus, User, UsersRepoPort } from "@/core/ports/store.port";
 import { getDb } from "./client";
 import { newId } from "@/lib/id";
 
@@ -11,6 +11,12 @@ interface Row {
   website: string | null;
   role: string | null;
   onboarded: number;
+  access_status: string | null;
+  industry: string | null;
+  team_size: string | null;
+  use_case: string | null;
+  requested_at: number | null;
+  access_updated_at: number | null;
   created_at: number;
 }
 
@@ -24,6 +30,12 @@ function toUser(row: Row): User {
     website: row.website,
     role: row.role,
     onboarded: row.onboarded === 1,
+    accessStatus: (row.access_status as AccessStatus | null) ?? "pending",
+    industry: row.industry,
+    teamSize: row.team_size,
+    useCase: row.use_case,
+    requestedAt: row.requested_at,
+    accessUpdatedAt: row.access_updated_at,
     createdAt: row.created_at,
   };
 }
@@ -49,6 +61,12 @@ export const usersRepo: UsersRepoPort = {
       website: null,
       role: null,
       onboarded: false,
+      accessStatus: "pending",
+      industry: null,
+      teamSize: null,
+      useCase: null,
+      requestedAt: null,
+      accessUpdatedAt: null,
       createdAt: Date.now(),
     };
     getDb()
@@ -81,5 +99,26 @@ export const usersRepo: UsersRepoPort = {
         "UPDATE users SET company = ?, website = ?, role = ?, onboarded = 1 WHERE id = ?",
       )
       .run(company, website ?? null, role, id);
+  },
+  setAccessRequest(id, { company, website, industry, teamSize, useCase }) {
+    getDb()
+      .prepare(
+        `UPDATE users SET company = ?, website = ?, industry = ?, team_size = ?, use_case = ?,
+           requested_at = ? WHERE id = ?`,
+      )
+      .run(company, website, industry, teamSize, useCase, Date.now(), id);
+  },
+  setAccessStatus(id, status) {
+    getDb()
+      .prepare("UPDATE users SET access_status = ?, access_updated_at = ? WHERE id = ?")
+      .run(status, Date.now(), id);
+  },
+  listAccessRequests() {
+    const rows = getDb()
+      .prepare(
+        "SELECT * FROM users WHERE requested_at IS NOT NULL ORDER BY requested_at DESC",
+      )
+      .all() as Row[];
+    return rows.map(toUser);
   },
 };

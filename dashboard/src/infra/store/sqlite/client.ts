@@ -56,5 +56,15 @@ export function getDb(): Db {
   // Index created here (not in SCHEMA_SQL) so it runs only after the owner column
   // exists — on a pre-auth DB the column is added by the ALTER just above.
   db.exec("CREATE INDEX IF NOT EXISTS idx_runs_owner ON runs(owner, created_at DESC)");
+  // --- Alpha access gating ---
+  // Every user starts 'pending'; an admin flips them to 'approved' before they
+  // can run audits. Existing users are gated too (they'll request access);
+  // admins bypass the gate via ADMIN_EMAILS regardless of this column.
+  safeAlter("ALTER TABLE users ADD COLUMN access_status TEXT NOT NULL DEFAULT 'pending'");
+  safeAlter("ALTER TABLE users ADD COLUMN industry TEXT");
+  safeAlter("ALTER TABLE users ADD COLUMN team_size TEXT");
+  safeAlter("ALTER TABLE users ADD COLUMN use_case TEXT");
+  safeAlter("ALTER TABLE users ADD COLUMN requested_at INTEGER");
+  safeAlter("ALTER TABLE users ADD COLUMN access_updated_at INTEGER");
   return db;
 }

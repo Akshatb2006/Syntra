@@ -5,6 +5,7 @@ import { ThemeToggle } from "@/ui/components/ThemeToggle";
 import { LandingMotionLazy } from "@/ui/components/LandingMotionLazy";
 import { StartTrialButton } from "@/ui/components/StartTrialButton";
 import { getSession } from "@/lib/auth/server";
+import { isAdmin } from "@/lib/auth/admin";
 import "./landing.css";
 
 const AUTH_ERRORS: Record<string, string> = {
@@ -28,6 +29,7 @@ export default async function LandingPage({
 }) {
   const session = await getSession();
   const authed = !!session;
+  const admin = authed && isAdmin(session!.email);
   const { authError } = await searchParams;
   // Resume a pending audit: a signed-out visitor who clicked "Analyze" was sent
   // through sign-in with their URL stashed in `pending_audit`. Now that they're
@@ -61,13 +63,14 @@ export default async function LandingPage({
             <a href="#devs">For developers</a>
             <a href="#faq">FAQ</a>
             <ThemeToggle />
+            {admin && <Link className="nav-login" href="/admin">Admin</Link>}
             {authed ? (
               <Link className="nav-login" href="/runs">My runs</Link>
             ) : (
               <a className="nav-login" href="/api/auth/login">Log in</a>
             )}
             <StartTrialButton className="nav-cta">
-              Start a free run <span style={{ fontSize: 11 }}>→</span>
+              Join the Private Alpha <span style={{ fontSize: 11 }}>→</span>
             </StartTrialButton>
           </div>
         </div>
@@ -104,7 +107,7 @@ export default async function LandingPage({
           <div className="hero-meta">
             <span className="row"><span className="check">✓</span> No code changes by you</span>
             <span className="row"><span className="check">✓</span> Every change is a reviewable PR</span>
-            <span className="row"><span className="check">✓</span> First run free, no credit card</span>
+            <span className="row"><span className="check">✓</span> Invite-only alpha — request access</span>
           </div>
           </div>
 

@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { SignInPromptModal } from "./SignInPromptModal";
+import { RequestAccessModal } from "./RequestAccessModal";
 
 /**
  * The value-first entry point: paste a URL, get an audit. No GitHub, no
@@ -28,6 +29,9 @@ export function HeroAuditForm({
   // When set, the "sign in with Google to run your audit" modal is shown for
   // this URL (signed-out visitors who clicked Analyze).
   const [signInFor, setSignInFor] = useState<string | null>(null);
+  // When set, the "join the alpha" request modal is shown (signed-in but not yet
+  // approved). `requested` tells the modal to open in its pending state.
+  const [accessGate, setAccessGate] = useState<{ siteUrl: string; requested: boolean } | null>(null);
 
   function normalize(raw: string): string | null {
     let s = raw.trim();
@@ -66,6 +70,12 @@ export function HeroAuditForm({
           return;
         }
         const json = await res.json();
+        if (res.status === 403 && json.code === "access_gate") {
+          // Signed in but not approved for the alpha — surface the request modal.
+          setAccessGate({ siteUrl, requested: !!json.requested });
+          setBusy(false);
+          return;
+        }
         if (!res.ok) throw new Error(json.error ?? "Could not start the audit");
         router.push(`/runs/${json.run.id}`);
       } catch (err) {
@@ -133,6 +143,13 @@ export function HeroAuditForm({
       )}
       {signInFor && (
         <SignInPromptModal siteUrl={signInFor} onClose={() => setSignInFor(null)} />
+      )}
+      {accessGate && (
+        <RequestAccessModal
+          defaultWebsite={accessGate.siteUrl}
+          alreadyRequested={accessGate.requested}
+          onClose={() => setAccessGate(null)}
+        />
       )}
     </form>
   );

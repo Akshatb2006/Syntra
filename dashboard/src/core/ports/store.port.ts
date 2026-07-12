@@ -7,6 +7,19 @@ import type {
 } from "@growth/shared/types";
 import type { Credentials } from "@growth/shared/schemas";
 
+/** Alpha access gate: new users start `pending`; an admin flips them to
+ *  `approved` (or `rejected`). Only `approved` (or admins) can run audits. */
+export type AccessStatus = "pending" | "approved" | "rejected";
+
+/** The customer-discovery info a user submits when requesting alpha access. */
+export interface AccessRequest {
+  company: string;
+  website: string;
+  industry: string;
+  teamSize: string;
+  useCase: string;
+}
+
 /** An authenticated user (created on first Google sign-in). */
 export interface User {
   id: string;
@@ -17,6 +30,13 @@ export interface User {
   website: string | null;
   role: string | null;
   onboarded: boolean;
+  // --- Alpha access gating ---
+  accessStatus: AccessStatus;
+  industry: string | null;
+  teamSize: string | null;
+  useCase: string | null;
+  requestedAt: number | null;
+  accessUpdatedAt: number | null;
   createdAt: number;
 }
 
@@ -27,6 +47,13 @@ export interface UsersRepoPort {
   getByEmail(email: string): User | undefined;
   /** Save onboarding answers and flip `onboarded` to true. */
   setOnboarding(id: string, fields: { company: string; website?: string | null; role: string }): void;
+  /** Record an alpha-access request (stores the form + stamps requestedAt).
+   *  Status stays `pending` until an admin acts. */
+  setAccessRequest(id: string, fields: AccessRequest): void;
+  /** Admin action: approve/reject a user. */
+  setAccessStatus(id: string, status: AccessStatus): void;
+  /** All users who have submitted a request, newest first (admin view). */
+  listAccessRequests(): User[];
 }
 
 export interface RunsRepoPort {

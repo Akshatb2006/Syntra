@@ -53,7 +53,7 @@ export function StartTrialButton({
         {children}
       </a>
       <span className={`cta-tip${show ? " show" : ""}`} role="status">
-        Enter your website URL in the box to start your free run
+        Enter your website URL to request early access
       </span>
     </span>
   );
