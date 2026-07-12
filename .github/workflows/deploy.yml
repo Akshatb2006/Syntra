@@ -1,0 +1,53 @@
+name: Deploy to EC2
+
+# Auto-deploy on every push to alpha. Also runnable manually from the Actions
+# tab (workflow_dispatch) — useful right after you add the secrets.
+on:
+  push:
+    branches: [alpha]
+  workflow_dispatch:
+
+# Never let two deploys run at once (a later push waits for the current one).
+concurrency:
+  group: deploy-ec2
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Sync source to EC2
+        run: |
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new" \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='.next' \
+            --exclude='dist' \
+            --exclude='build' \
+            --exclude='.turbo' \
+            --exclude='*.pem' \
+            --exclude='.env' \
+            --exclude='dashboard/.env' \
+            --exclude='mcp-server/.env' \
+            --exclude='*.db' \
+            --exclude='data' \
+            ./ ubuntu@"${{ secrets.EC2_HOST }}":~/syntra/
+
+      - name: Build + restart containers
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new \
+              -o ServerAliveInterval=30 -o ServerAliveCountMax=120 \
+              ubuntu@"${{ secrets.EC2_HOST }}" \
+              'cd ~/syntra && sudo docker compose up -d --build && sudo docker compose ps'
