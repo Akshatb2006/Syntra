@@ -7,7 +7,6 @@
   inset: 0;
   overflow-y: auto;
   display: flex;
-  align-items: center;
   justify-content: center;
   padding: 40px 20px;
   background: var(--bg);
@@ -79,6 +78,11 @@
   z-index: 1;
   width: 100%;
   max-width: 468px;
+  /* Centres the card via auto margins rather than `align-items: center` on the
+     scroller. Auto margins only ever absorb FREE space, so a card taller than
+     the viewport starts at the top and scrolls; centring would push its head
+     (logo + "Welcome") above the scroll origin, where it can't be reached. */
+  margin: auto;
   background: color-mix(in srgb, var(--surface) 88%, transparent);
   -webkit-backdrop-filter: blur(12px) saturate(130%);
   backdrop-filter: blur(12px) saturate(130%);
@@ -148,6 +152,10 @@
   margin: 0 0 7px;
 }
 .onb-label-block { margin-top: 20px; margin-bottom: 11px; }
+/* Any label that FOLLOWS a field opens a new group and needs air above it —
+   the form is a stack of them now, not the single question it used to be. */
+.onb-input + .onb-label,
+.onb-roles + .onb-label { margin-top: 18px; }
 
 .onb-input {
   width: 100%;
