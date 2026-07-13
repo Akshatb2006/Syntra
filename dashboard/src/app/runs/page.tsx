@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { sqliteStore } from "@/infra/store/sqlite";
 import { getSession } from "@/lib/auth/server";
+import { getAccess } from "@/lib/auth/access";
 import { RunStatusBadge } from "@/ui/components/StatusBadge";
 import { LockedFeature } from "@/ui/components/LockedFeature";
 
@@ -19,6 +20,9 @@ function timeAgo(ms: number): string {
 export default async function RunsIndexPage() {
   const session = await getSession();
   if (!session) redirect("/");
+  // Runs are part of the approved product. A pending account has none, so send
+  // it back to the landing, where it gets the access status instead.
+  if ((await getAccess()).kind !== "approved") redirect("/");
   // Only this user's runs — never anyone else's.
   const runs = sqliteStore.runs.list(50, session.uid);
   return (

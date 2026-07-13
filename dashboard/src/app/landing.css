@@ -1349,3 +1349,46 @@ html[data-theme="dark"] .syntra-landing {
 @media (prefers-reduced-motion: reduce) {
   .lp-auth-toast { animation: none; }
 }
+
+/* ── ALPHA ACCESS PANEL ──────────────────────────────────────────────────
+   What sits where the URL box goes for anyone who isn't approved yet:
+   a request CTA, or the "you're on the waitlist" card. ── */
+.syntra-landing .hero-access { margin-bottom: 18px; max-width: 540px; }
+.syntra-landing .hero-access-btn { font-size: 15px; padding: 13px 22px; }
+.syntra-landing .hero-access .hero-audit-note { margin-top: 12px; line-height: 1.55; }
+.syntra-landing .hero-access-card {
+  padding: 20px 22px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  text-align: left;
+  box-shadow: var(--shadow-card);
+}
+.syntra-landing .ha-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px;
+  margin-bottom: 12px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-soft-2);
+  color: var(--accent-strong);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.syntra-landing .ha-badge-muted {
+  background: var(--surface-2);
+  border-color: var(--border);
+  color: var(--fg-muted);
+}
+.syntra-landing .ha-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.syntra-landing .ha-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+.syntra-landing .ha-sub { font-size: 13.5px; color: var(--fg-muted); line-height: 1.6; }
+.syntra-landing .ha-sub strong { color: var(--fg); font-weight: 500; }

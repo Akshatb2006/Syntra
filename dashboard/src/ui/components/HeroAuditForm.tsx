@@ -1,37 +1,21 @@
 "use client";
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { SignInPromptModal } from "./SignInPromptModal";
-import { RequestAccessModal } from "./RequestAccessModal";
 
 /**
- * The value-first entry point: paste a URL, get an audit. No GitHub, no
- * credentials — it creates an audit-only run and drops the user straight onto
- * the live results page. Credentials are only asked for later, when they
- * choose to implement a fix.
+ * The audit entry point, shown only to approved alpha users: paste a URL, get an
+ * audit. No GitHub, no credentials — it creates an audit-only run and drops the
+ * user straight onto the live results page. Credentials are only asked for
+ * later, when they choose to implement a fix.
  *
- * Auth is deferred: signed-out visitors can browse the whole landing and only
- * hit sign-in when they click Analyze. We carry the intended URL through the
- * OAuth round-trip (via a `pending_audit` cookie set by /api/auth/login), so
- * after sign-in + onboarding the audit resumes automatically here.
+ * Signed-out and not-yet-approved visitors never see this — the hero shows them
+ * the alpha-access CTA instead (see `getAccess()` and the landing page).
  */
-export function HeroAuditForm({
-  authed = false,
-  pendingAudit = null,
-}: {
-  authed?: boolean;
-  pendingAudit?: string | null;
-}) {
+export function HeroAuditForm() {
   const router = useRouter();
-  const [url, setUrl] = useState(pendingAudit ?? "");
+  const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // When set, the "sign in with Google to run your audit" modal is shown for
-  // this URL (signed-out visitors who clicked Analyze).
-  const [signInFor, setSignInFor] = useState<string | null>(null);
-  // When set, the "join the alpha" request modal is shown (signed-in but not yet
-  // approved). `requested` tells the modal to open in its pending state.
-  const [accessGate, setAccessGate] = useState<{ siteUrl: string; requested: boolean } | null>(null);
 
   function normalize(raw: string): string | null {
     let s = raw.trim();
@@ -46,12 +30,6 @@ export function HeroAuditForm({
     }
   }
 
-  // Send an unauthenticated visitor into Google sign-in, stashing the site they
-  // want audited so we can resume it when they return.
-  function toSignIn(siteUrl: string) {
-    window.location.href = `/api/auth/login?audit=${encodeURIComponent(siteUrl)}`;
-  }
-
   const startAudit = useCallback(
     async (siteUrl: string) => {
       setBusy(true);
@@ -64,18 +42,14 @@ export function HeroAuditForm({
             input: { siteUrl, trigger: { kind: "manual", userId: "self" } },
           }),
         });
-        if (res.status === 401) {
-          // Session lapsed between page load and submit — go (re)authenticate.
-          toSignIn(siteUrl);
+        // The session lapsed, or access was revoked, since this page rendered.
+        // Re-render the hero from the server: it'll show sign-in or the access
+        // state that now applies, instead of a form that can't submit.
+        if (res.status === 401 || res.status === 403) {
+          router.refresh();
           return;
         }
         const json = await res.json();
-        if (res.status === 403 && json.code === "access_gate") {
-          // Signed in but not approved for the alpha — surface the request modal.
-          setAccessGate({ siteUrl, requested: !!json.requested });
-          setBusy(false);
-          return;
-        }
         if (!res.ok) throw new Error(json.error ?? "Could not start the audit");
         router.push(`/runs/${json.run.id}`);
       } catch (err) {
@@ -94,24 +68,8 @@ export function HeroAuditForm({
       setError("Enter a valid website URL, e.g. yourcompany.com");
       return;
     }
-    if (!authed) {
-      // Not signed in yet — surface the branded sign-in modal for this URL.
-      setSignInFor(siteUrl);
-      return;
-    }
     await startAudit(siteUrl);
   }
-
-  // Resume: a visitor who clicked Analyze while signed out has now signed in and
-  // onboarded, landing back here with their URL in `pending_audit`. Clear the
-  // cookie (so a refresh doesn't re-fire) and start the audit automatically.
-  useEffect(() => {
-    if (!pendingAudit) return;
-    document.cookie = "pending_audit=; Max-Age=0; path=/";
-    const siteUrl = normalize(pendingAudit);
-    if (siteUrl) void startAudit(siteUrl);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingAudit]);
 
   return (
     <form className="hero-audit" onSubmit={analyze}>
@@ -136,20 +94,8 @@ export function HeroAuditForm({
         <div className="hero-audit-error">{error}</div>
       ) : (
         <div className="hero-audit-note">
-          {authed
-            ? "Paste your URL — a real audit in a couple of minutes."
-            : "Paste your URL — sign in and we’ll run a real audit in minutes."}
+          Paste your URL — a real audit in a couple of minutes.
         </div>
-      )}
-      {signInFor && (
-        <SignInPromptModal siteUrl={signInFor} onClose={() => setSignInFor(null)} />
-      )}
-      {accessGate && (
-        <RequestAccessModal
-          defaultWebsite={accessGate.siteUrl}
-          alreadyRequested={accessGate.requested}
-          onClose={() => setAccessGate(null)}
-        />
       )}
     </form>
   );

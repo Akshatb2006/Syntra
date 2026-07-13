@@ -1,11 +1,10 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
 import { HeroAuditForm } from "@/ui/components/HeroAuditForm";
+import { HeroAccessPanel } from "@/ui/components/HeroAccessPanel";
 import { ThemeToggle } from "@/ui/components/ThemeToggle";
 import { LandingMotionLazy } from "@/ui/components/LandingMotionLazy";
 import { StartTrialButton } from "@/ui/components/StartTrialButton";
-import { getSession } from "@/lib/auth/server";
-import { isAdmin } from "@/lib/auth/admin";
+import { getAccess } from "@/lib/auth/access";
 import "./landing.css";
 
 const AUTH_ERRORS: Record<string, string> = {
@@ -27,16 +26,14 @@ export default async function LandingPage({
 }: {
   searchParams: Promise<{ authError?: string }>;
 }) {
-  const session = await getSession();
-  const authed = !!session;
-  const admin = authed && isAdmin(session!.email);
+  const access = await getAccess();
   const { authError } = await searchParams;
-  // Resume a pending audit: a signed-out visitor who clicked "Analyze" was sent
-  // through sign-in with their URL stashed in `pending_audit`. Now that they're
-  // back and authed, hand it to the hero form to prefill + auto-start.
-  const pendingAudit = authed
-    ? (await cookies()).get("pending_audit")?.value ?? null
-    : null;
+  // Everything gated behind the invite-only alpha — the URL box, Recent runs,
+  // My runs — appears only once an admin has approved the account. Until then
+  // the hero's single call to action is to request access.
+  const approved = access.kind === "approved";
+  const authed = access.kind !== "signed_out";
+  const admin = access.kind === "approved" && access.admin;
 
   return (
     <>
@@ -64,14 +61,23 @@ export default async function LandingPage({
             <a href="#faq">FAQ</a>
             <ThemeToggle />
             {admin && <Link className="nav-login" href="/admin">Admin</Link>}
+            {/* "My runs" is only real once you're approved — a pending account
+                has no runs and would just bounce off the gate. */}
+            {approved && <Link className="nav-login" href="/runs">My runs</Link>}
             {authed ? (
-              <Link className="nav-login" href="/runs">My runs</Link>
+              <a className="nav-login" href="/api/auth/logout">Log out</a>
             ) : (
               <a className="nav-login" href="/api/auth/login">Log in</a>
             )}
-            <StartTrialButton className="nav-cta">
-              Join the Private Alpha <span style={{ fontSize: 11 }}>→</span>
-            </StartTrialButton>
+            {approved ? (
+              <StartTrialButton className="nav-cta">
+                Start a run <span style={{ fontSize: 11 }}>→</span>
+              </StartTrialButton>
+            ) : (
+              <a className="nav-cta" href={authed ? "#top" : "/api/auth/login"}>
+                Request alpha access <span style={{ fontSize: 11 }}>→</span>
+              </a>
+            )}
           </div>
         </div>
       </nav>
@@ -95,14 +101,23 @@ export default async function LandingPage({
             highest-impact improvements, opens pull requests against your repo, and
             only flags what passes Lighthouse. You watch it work in real time.
           </p>
-          <HeroAuditForm authed={authed} pendingAudit={pendingAudit} />
+          {approved ? (
+            <HeroAuditForm />
+          ) : (
+            <HeroAccessPanel
+              state={access.kind}
+              email={access.kind === "signed_out" ? "" : access.email}
+            />
+          )}
           <div className="hero-ctas">
             <a className="lp-btn lp-btn-secondary" href="#how">
               See how it works
             </a>
-            <Link className="lp-btn lp-btn-secondary" href="/runs">
-              Recent runs
-            </Link>
+            {approved && (
+              <Link className="lp-btn lp-btn-secondary" href="/runs">
+                Recent runs
+              </Link>
+            )}
           </div>
           <div className="hero-meta">
             <span className="row"><span className="check">✓</span> No code changes by you</span>
@@ -771,13 +786,24 @@ export default async function LandingPage({
         <div className="container cta-band-inner" data-reveal>
           <h2>Run it on your site. See what changes.</h2>
           <p>
-            First run is free. No card required. About five minutes from &quot;paste
-            URL&quot; to a Lighthouse-validated pull request waiting in GitHub.
+            {approved
+              ? "First run is free. No card required. About five minutes from “paste URL” to a Lighthouse-validated pull request waiting in GitHub."
+              : "Syntra is in invite-only alpha. Request access, tell us about your site, and we’ll email you the moment your account is open."}
           </p>
           <div className="ctas">
-            <a className="lp-btn lp-btn-primary" href="#top" data-magnetic>
-              Analyze my site <span className="ext">→</span>
-            </a>
+            {approved ? (
+              <a className="lp-btn lp-btn-primary" href="#top" data-magnetic>
+                Analyze my site <span className="ext">→</span>
+              </a>
+            ) : (
+              <a
+                className="lp-btn lp-btn-primary"
+                href={authed ? "#top" : "/api/auth/login"}
+                data-magnetic
+              >
+                Request alpha access <span className="ext">→</span>
+              </a>
+            )}
             <a className="lp-btn lp-btn-secondary" href="#how">
               How it works
             </a>
@@ -804,8 +830,14 @@ export default async function LandingPage({
               <ul>
                 <li><a href="#how">How it works</a></li>
                 <li><a href="#proof">Proof</a></li>
-                <li><Link href="/runs/new">Start a run</Link></li>
-                <li><Link href="/runs">Recent runs</Link></li>
+                {approved ? (
+                  <>
+                    <li><Link href="/runs/new">Start a run</Link></li>
+                    <li><Link href="/runs">Recent runs</Link></li>
+                  </>
+                ) : (
+                  <li><a href={authed ? "#top" : "/api/auth/login"}>Request alpha access</a></li>
+                )}
               </ul>
             </div>
             <div className="foot-col">

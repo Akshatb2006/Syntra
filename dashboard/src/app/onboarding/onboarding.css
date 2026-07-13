@@ -248,3 +248,20 @@
 @media (prefers-reduced-motion: reduce) {
   .onb-aurora, .onb-orb, .onb-wave, .onb-card { animation: none; }
 }
+
+/* Access-request fields — the invite-only alpha folds its request form into
+   onboarding, so this screen also carries a select and a free-text answer. */
+.onb-textarea {
+  min-height: 82px;
+  resize: vertical;
+  font: inherit;
+  line-height: 1.5;
+}
+select.onb-input { cursor: pointer; appearance: none; }
+.onb-fine {
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--fg-dim);
+  text-align: center;
+  line-height: 1.5;
+}
